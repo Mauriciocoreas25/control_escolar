@@ -1,0 +1,161 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Asignaturas y Carga Académica - {{ institucion.nombre }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+      <div class="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">
+        Plan de Estudios • Carga Académica
+      </div>
+      <h2 class="text-2xl font-extrabold text-slate-900">Catálogo de Asignaturas y Materias</h2>
+      <p class="text-sm text-slate-500">Administre las materias oficiales asignadas por grado, sección y docente.</p>
+    </div>
+
+    {% if user_rol == 'Director' %}
+    <button onclick="openModal('modal-asignatura')" class="px-4 py-2 text-xs font-bold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-sm transition">
+      Registrar Nueva Asignatura
+    </button>
+    {% endif %}
+  </div>
+
+  <!-- Asignaturas Table -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+    <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+      <h3 class="text-sm font-bold text-slate-800">Materias Activas en el Sistema</h3>
+      <span class="text-xs text-slate-500">Total: <strong class="text-slate-900">{{ total }}</strong> asignaturas</span>
+    </div>
+    
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm text-slate-600">
+        <thead class="bg-slate-100/75 text-xs uppercase text-slate-500 font-semibold border-b border-slate-200">
+          <tr>
+            <th class="px-5 py-3.5">Código</th>
+            <th class="px-5 py-3.5">Nombre de la Asignatura</th>
+            <th class="px-5 py-3.5">Grado y Sección</th>
+            <th class="px-5 py-3.5">Docente Asignado</th>
+            <th class="px-5 py-3.5">Descripción</th>
+            {% if user_rol == 'Director' %}<th class="px-5 py-3.5 text-right">Acciones</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for a in asignaturas %}
+          <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="px-5 py-3.5 font-mono text-xs font-bold text-blue-700">
+              <span class="px-2 py-1 rounded bg-blue-50 border border-blue-200">{{ a.codigo }}</span>
+            </td>
+            <td class="px-5 py-3.5 font-semibold text-slate-900">{{ a.nombre }}</td>
+            <td class="px-5 py-3.5">
+              <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {{ a.grado_seccion|default:"General" }}
+              </span>
+            </td>
+            <td class="px-5 py-3.5 text-xs text-slate-700 font-medium">
+              {% if a.profesor_nombre and a.profesor_nombre != "Sin asignar" %}
+                <span class="inline-flex items-center px-2.5 py-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  {{ a.profesor_nombre }}
+                </span>
+              {% else %}
+                <span class="text-slate-400 italic">Sin asignar</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3.5 text-xs text-slate-500">{{ a.descripcion|default:"Materia del plan curricular" }}</td>
+            {% if user_rol == 'Director' %}
+            <td class="px-5 py-3.5 text-right">
+              <form method="POST" action="{% url 'asignatura_delete' a.id %}" onsubmit="return confirm('¿Desea eliminar la asignatura {{ a.nombre }}?')" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="text-rose-600 hover:text-rose-800 text-xs font-semibold">Eliminar</button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="px-5 py-8 text-center text-slate-400 text-xs">
+              No hay asignaturas registradas.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if user_rol == 'Director' %}
+<!-- Modal: Registrar Asignatura -->
+<div id="modal-asignatura" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">Registrar Asignatura</h3>
+        <p class="text-xs text-slate-500">Asigne la materia a un grado, sección y docente</p>
+      </div>
+      <button onclick="closeModal('modal-asignatura')" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <form method="POST" action="{% url 'asignatura_create' %}" class="space-y-4">
+      {% csrf_token %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Código de la Asignatura *</label>
+          <input type="text" name="codigo" required placeholder="Ej: MAT-7A, CIEN-02" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre de la Materia *</label>
+          <input type="text" name="nombre" required placeholder="Ej: Matemáticas" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 focus:outline-none">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Grado y Sección Asignada *</label>
+        <select name="grado_seccion" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 focus:outline-none bg-white">
+          <option value="Primer Grado - Sección A">Primer Grado - Sección A</option>
+          <option value="Segundo Grado - Sección A">Segundo Grado - Sección A</option>
+          <option value="Tercer Grado - Sección A">Tercer Grado - Sección A</option>
+          <option value="Cuarto Grado - Sección A">Cuarto Grado - Sección A</option>
+          <option value="Quinto Grado - Sección A">Quinto Grado - Sección A</option>
+          <option value="Sexto Grado - Sección A">Sexto Grado - Sección A</option>
+          <option value="Séptimo Grado - Sección A" selected>Séptimo Grado - Sección A</option>
+          <option value="Octavo Grado - Sección A">Octavo Grado - Sección A</option>
+          <option value="Noveno Grado - Sección A">Noveno Grado - Sección A</option>
+          <option value="1° Año Bachillerato - Sección A">1° Año Bachillerato - Sección A</option>
+          <option value="2° Año Bachillerato - Sección A">2° Año Bachillerato - Sección A</option>
+          <option value="General">General (Todos los grados)</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Docente Asignado</label>
+        <select name="profesor_nombre" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 focus:outline-none bg-white">
+          <option value="Sin asignar">Sin asignar</option>
+          {% for p in profesores %}
+            <option value="{{ p.nombre }}">{{ p.nombre }} ({{ p.especialidad|default:"Docente" }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Descripción / Observaciones</label>
+        <textarea name="descripcion" rows="2" placeholder="Descripción del contenido..." class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 focus:outline-none"></textarea>
+      </div>
+
+      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200">
+        <button type="button" onclick="closeModal('modal-asignatura')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded">Cancelar</button>
+        <button type="submit" class="px-5 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-sm">Guardar Asignatura</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+  function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+</script>
+{% endblock %}

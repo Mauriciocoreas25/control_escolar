@@ -1,0 +1,238 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Ciclos y Períodos Escolares - {{ institucion.nombre }}{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+  <!-- Header & Actions -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+      <div class="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">
+        Dirección General • Calendario Escolar
+      </div>
+      <h2 class="text-2xl font-extrabold text-slate-900">Gestión de Ciclos y Períodos Escolares</h2>
+      <p class="text-sm text-slate-500">Configure los años lectivos, trimestres y controle el bloqueo oficial de notas.</p>
+    </div>
+
+    {% if puede_cerrar %}
+    <div class="flex items-center space-x-2.5">
+      <button onclick="openModal('modal-ciclo')" class="px-3.5 py-2 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded shadow-xs hover:bg-slate-50 transition">
+        Nuevo Ciclo Escolar
+      </button>
+      <button onclick="openModal('modal-periodo')" class="px-4 py-2 text-xs font-bold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-sm transition">
+        Nuevo Período / Trimestre
+      </button>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Section 1: Períodos Escolares Activos -->
+  <div class="space-y-4">
+    <div class="flex items-center justify-between">
+      <h3 class="text-base font-bold text-slate-900">Períodos de Evaluación (Trimestres)</h3>
+      <span class="text-xs text-slate-500">Bloqueo sincronizado con Web y App Móvil</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {% for p in periodos %}
+      <div class="bg-white p-6 rounded-xl border {% if p.estado == 'Abierto' %}border-2 border-blue-500 shadow-md{% else %}border-slate-200 shadow-xs{% endif %} space-y-4 relative">
+        <div class="flex items-center justify-between">
+          <span class="w-10 h-10 rounded {% if p.estado == 'Abierto' %}bg-blue-600 text-white{% else %}bg-slate-100 text-slate-700{% endif %} font-bold flex items-center justify-center">
+            P{{ forloop.counter }}
+          </span>
+          {% if p.estado == 'Abierto' %}
+            <span class="px-2.5 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded">En Curso / Abierto</span>
+          {% else %}
+            <span class="px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-700 rounded">Cerrado / Bloqueado</span>
+          {% endif %}
+        </div>
+
+        <div>
+          <h4 class="font-bold text-slate-900 text-base">{{ p.nombre }}</h4>
+          <p class="text-xs text-slate-500 mt-1">Ciclo Escolar ID #{{ p.anio_lectivo_id }}</p>
+        </div>
+
+        <div class="p-3 bg-slate-50 rounded text-xs text-slate-700 space-y-1">
+          <div class="flex justify-between">
+            <span>Registro docente:</span>
+            <strong>{% if p.estado == 'Abierto' %}Habilitado en App{% else %}Notas congeladas{% endif %}</strong>
+          </div>
+        </div>
+
+        <div class="pt-2 flex items-center space-x-2">
+          {% if puede_cerrar %}
+            <form method="POST" action="{% url 'periodo_toggle' p.id %}" class="flex-1">
+              {% csrf_token %}
+              {% if p.estado == 'Abierto' %}
+                <button type="submit" class="w-full py-2 bg-blue-900 hover:bg-blue-950 text-white rounded text-xs font-semibold shadow-xs transition text-center">
+                  Cerrar Período
+                </button>
+              {% else %}
+                <button type="submit" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold border border-slate-300 transition text-center">
+                  Reabrir Período
+                </button>
+              {% endif %}
+            </form>
+
+            <form method="POST" action="{% url 'periodo_delete' p.id %}" onsubmit="return confirm('¿Eliminar período {{ p.nombre }}?')" class="inline">
+              {% csrf_token %}
+              <button type="submit" class="px-2.5 py-2 text-rose-600 hover:text-rose-800 rounded text-xs font-semibold">
+                Eliminar
+              </button>
+            </form>
+          {% else %}
+            <button disabled class="w-full py-2 bg-slate-100 text-slate-400 rounded text-xs font-medium cursor-not-allowed">
+              Control Exclusivo de Dirección
+            </button>
+          {% endif %}
+        </div>
+      </div>
+      {% empty %}
+      <div class="col-span-3 bg-white p-8 rounded-xl border border-slate-200 text-center text-slate-500 text-xs">
+        No hay períodos registrados.
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Section 2: Ciclos Escolares / Años Lectivos -->
+  <div class="space-y-4">
+    <h3 class="text-base font-bold text-slate-900">Años Lectivos Registrados</h3>
+
+    <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <table class="w-full text-left text-sm text-slate-600">
+        <thead class="bg-slate-100/75 text-xs uppercase text-slate-500 font-semibold border-b border-slate-200">
+          <tr>
+            <th class="px-5 py-3">ID</th>
+            <th class="px-5 py-3">Año Lectivo</th>
+            <th class="px-5 py-3">Estado</th>
+            <th class="px-5 py-3">Descripción</th>
+            {% if puede_cerrar %}<th class="px-5 py-3 text-right">Acciones</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for a in anios %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-5 py-3.5 font-mono text-xs font-bold text-slate-400">#{{ a.id }}</td>
+            <td class="px-5 py-3.5 font-bold text-slate-900">{{ a.anio }}</td>
+            <td class="px-5 py-3.5">
+              <span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
+                {{ a.estado|default:"Activo" }}
+              </span>
+            </td>
+            <td class="px-5 py-3.5 text-xs text-slate-500">{{ a.descripcion|default:"Ciclo Escolar Regular" }}</td>
+            {% if puede_cerrar %}
+            <td class="px-5 py-3.5 text-right">
+              <form method="POST" action="{% url 'anio_delete' a.id %}" onsubmit="return confirm('¿Eliminar ciclo {{ a.anio }}?')" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="text-rose-600 hover:text-rose-800 text-xs font-semibold">Eliminar</button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="px-5 py-6 text-center text-slate-400 text-xs">
+              No hay años lectivos registrados.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if puede_cerrar %}
+<!-- Modal: Nuevo Ciclo Escolar -->
+<div id="modal-ciclo" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">Nuevo Ciclo Escolar</h3>
+        <p class="text-xs text-slate-500">Registrar un nuevo año lectivo</p>
+      </div>
+      <button onclick="closeModal('modal-ciclo')" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <form method="POST" action="{% url 'anio_create' %}" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Año Lectivo (ej: 2026, 2027) *</label>
+        <input type="text" name="anio" required placeholder="2027" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 focus:outline-none">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Descripción</label>
+        <input type="text" name="descripcion" placeholder="Ej: Año Escolar Regular 2027" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 focus:outline-none">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Estado</label>
+        <select name="estado" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 bg-white">
+          <option value="Activo">Activo</option>
+          <option value="Planificado">Planificado</option>
+        </select>
+      </div>
+
+      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200">
+        <button type="button" onclick="closeModal('modal-ciclo')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded">Cancelar</button>
+        <button type="submit" class="px-5 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-sm">Crear Ciclo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Nuevo Período Escolar -->
+<div id="modal-periodo" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">Nuevo Período Escolar</h3>
+        <p class="text-xs text-slate-500">Crear un trimestre para el año escolar</p>
+      </div>
+      <button onclick="closeModal('modal-periodo')" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <form method="POST" action="{% url 'periodo_create' %}" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre del Período *</label>
+        <input type="text" name="nombre" required placeholder="Ej: Trimestre 1, Trimestre 2, Trimestre 3" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 focus:outline-none">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Ciclo Escolar Asociado *</label>
+        <select name="anio_lectivo_id" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 bg-white">
+          {% for a in anios %}
+            <option value="{{ a.id }}">Año {{ a.anio }} (ID: {{ a.id }})</option>
+          {% empty %}
+            <option value="1">Año 2026</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Estado Inicial</label>
+        <select name="estado" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 bg-white">
+          <option value="Abierto">Abierto (Permite notas)</option>
+          <option value="Cerrado">Cerrado (Bloqueado)</option>
+        </select>
+      </div>
+
+      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200">
+        <button type="button" onclick="closeModal('modal-periodo')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded">Cancelar</button>
+        <button type="submit" class="px-5 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-sm">Crear Período</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+  function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+</script>
+{% endblock %}

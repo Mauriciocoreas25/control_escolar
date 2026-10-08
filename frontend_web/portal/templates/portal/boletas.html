@@ -1,0 +1,50 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Emisión de Boletas - {{ institucion.nombre }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <div>
+    <div class="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">Certificaciones Oficiales</div>
+    <h2 class="text-2xl font-extrabold text-slate-900">Emisión de Boletas de Calificaciones</h2>
+    <p class="text-sm text-slate-500">Genera boletas individuales o por sección completa en formato PDF oficial para el centro escolar.</p>
+  </div>
+
+  <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Año Lectivo:</label>
+        <select class="w-full text-xs rounded-lg border-slate-300 p-2.5 bg-slate-50 border">
+          <option>2026 (Activo)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Período / Trimestre:</label>
+        <select class="w-full text-xs rounded-lg border-slate-300 p-2.5 bg-slate-50 border">
+          <option>Trimestre 1 (Oficial - Cerrado)</option>
+          <option>Trimestre 2 (En Curso)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Grado y Sección:</label>
+        <select class="w-full text-xs rounded-lg border-slate-300 p-2.5 bg-slate-50 border">
+          <option>Todas las Secciones (Matrícula Completa)</option>
+          <option>Primer Grado - Sección A</option>
+          <option>Segundo Grado - Sección A</option>
+          <option>Séptimo Grado - Sección A</option>
+          <option>1° Año de Bachillerato - Sección A</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200">
+      <button onclick="window.print()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition">
+        Imprimir / Vista Previa
+      </button>
+      <button onclick="alert('Generando lote de boletas oficiales en PDF...')" class="px-5 py-2 bg-blue-900 hover:bg-blue-950 text-white rounded-lg text-xs font-semibold shadow-xs transition">
+        Descargar Lote PDF
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}

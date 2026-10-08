@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ institucion.nombre|default:"SIGE Escolar" }}{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- Topbar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="px-6 py-3.5 flex items-center justify-between">
+      <!-- School Brand -->
+      <div>
+        <h1 class="text-base font-bold text-slate-900 leading-tight">{{ institucion.nombre|default:"Complejo Educativo San Bartolomé" }}</h1>
+        <div class="flex items-center space-x-2 text-xs text-slate-500 mt-0.5">
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+            Período Activo: {{ institucion.anio_lectivo|default:"2026" }}
+          </span>
+          <span>•</span>
+          <span class="text-slate-500">{{ institucion.regimen|default:"Régimen Trimestral" }}</span>
+        </div>
+      </div>
+
+      <!-- User Profile & Logout -->
+      <div class="flex items-center space-x-4">
+        <div class="text-right hidden sm:block">
+          <p class="text-sm font-bold text-slate-800">
+            {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}
+          </p>
+          <p class="text-xs text-slate-500">
+            {% if user_rol == 'Director' %}Director General{% elif user_rol == 'Secretaria' %}Secretaría Académica{% else %}Usuario{% endif %}
+          </p>
+        </div>
+
+        <div class="flex items-center space-x-2.5">
+          {% if user_rol == 'Director' %}
+            <span class="px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-blue-900 bg-blue-100 rounded border border-blue-200">
+              Dirección
+            </span>
+          {% else %}
+            <span class="px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 rounded border border-emerald-200">
+              Secretaría
+            </span>
+          {% endif %}
+          
+          <a href="{% url 'logout' %}" title="Cerrar sesión" class="px-3 py-1 text-xs font-semibold text-slate-600 hover:text-rose-700 hover:bg-slate-100 rounded transition border border-slate-200">
+            Cerrar Sesión
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex flex-1">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shrink-0">
+      <div class="p-4 space-y-6">
+        <div>
+          <div class="flex items-center justify-between px-3 mb-2">
+            <p class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Gestión Institucional</p>
+            <span class="text-[10px] font-semibold px-1.5 py-0.2 rounded {% if user_rol == 'Director' %}bg-blue-900 text-blue-200{% else %}bg-emerald-900 text-emerald-200{% endif %}">
+              {{ user_rol }}
+            </span>
+          </div>
+
+          <nav class="space-y-1">
+            <a href="{% url 'dashboard' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'dashboard' %}bg-blue-800 text-white font-semibold{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+              <span>Dashboard General</span>
+            </a>
+
+            <!-- Estudiantes -->
+            <a href="{% url 'estudiantes_list' %}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'estudiantes_list' %}bg-blue-800 text-white font-semibold{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+              <span>Estudiantes</span>
+              {% if user_rol == 'Secretaria' %}
+                <span class="text-[10px] font-bold bg-emerald-500/30 text-emerald-300 px-1.5 py-0.5 rounded">Matrícula</span>
+              {% endif %}
+            </a>
+
+            <!-- Docentes / Planta: SOLO PARA DIRECTOR -->
+            {% if user_rol == 'Director' %}
+            <a href="{% url 'docentes_list' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'docentes_list' %}bg-blue-800 text-white font-semibold{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+              <span>Docentes / Planta</span>
+            </a>
+            {% endif %}
+
+            <!-- Cierres de Periodo: SOLO PARA DIRECTOR -->
+            {% if user_rol == 'Director' %}
+            <a href="{% url 'periodos_list' %}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'periodos_list' %}bg-blue-800 text-white font-semibold{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+              <span>Cierres de Período</span>
+              <span class="text-[10px] font-bold bg-blue-500/30 text-blue-300 px-1.5 py-0.5 rounded">Oficial</span>
+            </a>
+            {% endif %}
+
+            <!-- Boletas y Reportes: Visible para ambos -->
+            <a href="{% url 'boletas_view' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'boletas_view' %}bg-blue-800 text-white font-semibold{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+              <span>Boletas y Reportes</span>
+            </a>
+          </nav>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold tracking-wider text-slate-400 uppercase px-3 mb-2">Administración</p>
+          <nav class="space-y-1">
+            <a href="{% url 'carga_academica' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'carga_academica' %}bg-blue-800 text-white font-semibold{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+              <span>Carga Académica</span>
+            </a>
+
+            {% if user_rol == 'Director' %}
+            <a href="{% url 'usuarios_list' %}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'usuarios_list' %}bg-blue-800 text-white font-semibold{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+              <span>Gestión de Usuarios</span>
+              <span class="text-[10px] font-bold bg-amber-500/30 text-amber-300 px-1.5 py-0.5 rounded">RBAC</span>
+            </a>
+            <a href="{% url 'ajustes_view' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'ajustes_view' %}bg-blue-800 text-white font-semibold{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+              <span>Ajustes Institucionales</span>
+            </a>
+            {% endif %}
+          </nav>
+        </div>
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div class="p-4 border-t border-slate-800 bg-slate-950/40 text-xs text-slate-400 space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-slate-300">SIGE Control Escolar</span>
+          <span class="font-mono text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">Activo</span>
+        </div>
+        <p class="text-[11px] text-slate-500">Sesión: <strong>{{ user_rol }}</strong></p>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 lg:p-8 space-y-6 overflow-y-auto max-w-7xl">
+      <!-- Flash Messages -->
+      {% if messages %}
+        <div class="space-y-2">
+          {% for message in messages %}
+            <div class="p-4 rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs transition-all {% if message.tags == 'error' %}bg-rose-50 border border-rose-200 text-rose-800{% elif message.tags == 'success' %}bg-emerald-50 border border-emerald-200 text-emerald-800{% else %}bg-blue-50 border border-blue-200 text-blue-800{% endif %}">
+              <span>{{ message }}</span>
+              <button onclick="this.parentElement.remove()" class="text-sm font-bold opacity-60 hover:opacity-100">✕</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% block content %}
+      {% endblock %}
+    </main>
+  </div>
+
+  {% block scripts %}
+  {% endblock %}
+
+</body>
+</html>

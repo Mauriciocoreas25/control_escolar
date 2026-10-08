@@ -1,0 +1,69 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Ajustes Institucionales - {{ institucion.nombre }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-3xl">
+  <div>
+    <div class="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">Dirección General • Configuración</div>
+    <h2 class="text-2xl font-extrabold text-slate-900">Ajustes Institucionales de la Escuela</h2>
+    <p class="text-sm text-slate-500">Modifica los datos globales del centro escolar. Los cambios se reflejarán inmediatamente en todo el sistema.</p>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+    <form method="POST" action="{% url 'ajustes_view' %}" class="space-y-5">
+      {% csrf_token %}
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nombre Oficial del Centro Escolar *</label>
+        <input type="text" name="nombre" value="{{ institucion.nombre }}" required class="w-full text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none">
+        <p class="text-[11px] text-slate-400 mt-1">Este nombre aparecerá en el encabezado, boletas de notas y reportes oficiales.</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Código MINED / Infraestructura</label>
+          <input type="text" name="codigo_mined" value="{{ institucion.codigo_mined }}" class="w-full text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Año Lectivo Activo *</label>
+          <input type="text" name="anio_lectivo" value="{{ institucion.anio_lectivo }}" required class="w-full text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Régimen de Evaluación</label>
+          <select name="regimen" class="w-full text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none bg-white">
+            <option value="Régimen Trimestral" {% if institucion.regimen == 'Régimen Trimestral' %}selected{% endif %}>Régimen Trimestral (3 Períodos)</option>
+            <option value="Régimen Bimestral" {% if institucion.regimen == 'Régimen Bimestral' %}selected{% endif %}>Régimen Bimestral (4 Períodos)</option>
+            <option value="Régimen Semestral" {% if institucion.regimen == 'Régimen Semestral' %}selected{% endif %}>Régimen Semestral (2 Períodos)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Director(a) General Titular</label>
+          <input type="text" name="director_nombre" value="{{ institucion.director_nombre }}" class="w-full text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Dirección Física</label>
+          <input type="text" name="direccion" value="{{ institucion.direccion }}" class="w-full text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Teléfono Institucional</label>
+          <input type="text" name="telefono" value="{{ institucion.telefono }}" class="w-full text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200">
+        <a href="{% url 'dashboard' %}" class="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancelar</a>
+        <button type="submit" class="px-6 py-2.5 bg-blue-900 hover:bg-blue-950 text-white rounded-xl text-xs font-bold shadow-md transition">
+          Guardar Ajustes Institucionales
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

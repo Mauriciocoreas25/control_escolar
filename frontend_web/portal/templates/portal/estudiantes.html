@@ -1,0 +1,222 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Expedientes y Matrícula - {{ institucion.nombre }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+      <div class="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">
+        {% if puede_matricular %}Secretaría Académica • Operaciones de Matrícula{% else %}Dirección Institucional • Supervisión de Matrícula{% endif %}
+      </div>
+      <h2 class="text-2xl font-extrabold text-slate-900">Expedientes y Padrón de Estudiantes</h2>
+      <p class="text-sm text-slate-500">Población estudiantil del {{ institucion.nombre }} — Ciclo {{ institucion.anio_lectivo }}</p>
+    </div>
+
+    {% if puede_matricular %}
+      <button onclick="openModal('modal-estudiante')" class="px-4 py-2 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded shadow-sm transition">
+        Matricular Nuevo Estudiante
+      </button>
+    {% endif %}
+  </div>
+
+  <!-- Search & Filter Bar -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+    <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50">
+      <form method="GET" class="w-full sm:w-80 flex items-center">
+        <input type="text" name="q" value="{{ query }}" placeholder="Buscar por nombre o NIE..." class="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+      </form>
+      <div class="text-xs text-slate-500 font-medium">
+        Total matriculados: <strong class="text-slate-900">{{ total }}</strong> estudiantes
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm text-slate-600">
+        <thead class="bg-slate-100/75 text-xs uppercase text-slate-500 font-semibold border-b border-slate-200">
+          <tr>
+            <th class="px-5 py-3.5">NIE</th>
+            <th class="px-5 py-3.5">Nombre Completo del Alumno</th>
+            <th class="px-5 py-3.5">Grado y Sección</th>
+            <th class="px-5 py-3.5">Encargado(a)</th>
+            <th class="px-5 py-3.5">Teléfono</th>
+            <th class="px-5 py-3.5 text-right">{% if puede_matricular %}Gestión{% else %}Supervisión{% endif %}</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for e in estudiantes %}
+          <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="px-5 py-3.5 font-mono text-xs font-bold text-blue-700">{{ e.nie }}</td>
+            <td class="px-5 py-3.5 font-semibold text-slate-900">{{ e.nombre_completo }}</td>
+            <td class="px-5 py-3.5">
+              <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800">
+                {{ e.grado_seccion }}
+              </span>
+            </td>
+            <td class="px-5 py-3.5 text-xs text-slate-700">{{ e.encargado|default:"Sin asignar" }}</td>
+            <td class="px-5 py-3.5 text-xs font-mono text-slate-600">{{ e.telefono|default:"N/A" }}</td>
+            <td class="px-5 py-3.5 text-right space-x-2">
+              {% if puede_matricular %}
+                <button onclick="openEditModal('{{ e.id }}', '{{ e.nie }}', '{{ e.nombre_completo }}', '{{ e.grado_seccion }}', '{{ e.encargado|default:'' }}', '{{ e.telefono|default:'' }}')" class="text-blue-600 hover:text-blue-800 text-xs font-semibold">Editar</button>
+                <form method="POST" action="{% url 'estudiante_delete' e.id %}" onsubmit="return confirm('¿Seguro(a) que desea dar de baja al estudiante {{ e.nombre_completo }}?')" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="text-rose-600 hover:text-rose-800 text-xs font-semibold">Eliminar</button>
+                </form>
+              {% else %}
+                <span class="text-xs text-slate-400 font-medium">Activo</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="px-5 py-8 text-center text-slate-400 text-xs">
+              No se encontraron estudiantes registrados en el padrón escolar.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if puede_matricular %}
+<!-- Modal: Matricular Nuevo Estudiante (Secretaría) -->
+<div id="modal-estudiante" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">Matricular Estudiante</h3>
+        <p class="text-xs text-slate-500">Formulario oficial de inscripción</p>
+      </div>
+      <button onclick="closeModal('modal-estudiante')" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <form method="POST" action="{% url 'estudiante_create' %}" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">NIE (Número de Identificación del Estudiante) *</label>
+        <input type="text" name="nie" required placeholder="Ej: 2026105" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+        <p class="text-[11px] text-slate-400 mt-1">El sistema validará que el NIE no se encuentre ya inscrito.</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nombres *</label>
+          <input type="text" name="nombres" required placeholder="Ej: Josué Alexander" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Apellidos *</label>
+          <input type="text" name="apellidos" required placeholder="Ej: Gómez Martínez" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Grado y Sección Asignada *</label>
+        <select name="grado_seccion" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 focus:outline-none bg-white">
+          <option value="Primer Grado - Sección A">Primer Grado - Sección A</option>
+          <option value="Segundo Grado - Sección A">Segundo Grado - Sección A</option>
+          <option value="Tercer Grado - Sección A">Tercer Grado - Sección A</option>
+          <option value="Cuarto Grado - Sección A">Cuarto Grado - Sección A</option>
+          <option value="Quinto Grado - Sección A">Quinto Grado - Sección A</option>
+          <option value="Sexto Grado - Sección A">Sexto Grado - Sección A</option>
+          <option value="Séptimo Grado - Sección A">Séptimo Grado - Sección A</option>
+          <option value="Octavo Grado - Sección A">Octavo Grado - Sección A</option>
+          <option value="Noveno Grado - Sección A">Noveno Grado - Sección A</option>
+          <option value="1° Año Bachillerato - Sección A">1° Año Bachillerato - Sección A</option>
+          <option value="2° Año Bachillerato - Sección A">2° Año Bachillerato - Sección A</option>
+        </select>
+      </div>
+
+      <div class="border-t border-slate-100 pt-3 space-y-3">
+        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Datos del Padre / Madre / Encargado</h4>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre Completo del Encargado *</label>
+          <input type="text" name="encargado" required placeholder="Ej: María Elena Martínez" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Teléfono de Emergencia *</label>
+            <input type="text" name="telefono" required placeholder="Ej: 7123-4567" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">DUI del Encargado</label>
+            <input type="text" name="dui" placeholder="00000000-0" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200">
+        <button type="button" onclick="closeModal('modal-estudiante')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded">Cancelar</button>
+        <button type="submit" class="px-5 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded shadow-sm">Confirmar Matrícula</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Editar Estudiante -->
+<div id="modal-edit" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">Modificar Expediente del Estudiante</h3>
+        <p class="text-xs text-slate-500">Actualización de datos académicos y familiares</p>
+      </div>
+      <button onclick="closeModal('modal-edit')" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <form id="form-edit" method="POST" action="" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">NIE</label>
+        <input type="text" id="edit-nie" name="nie" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none bg-slate-50">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre Completo</label>
+        <input type="text" id="edit-nombre" name="nombre" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Grado y Sección</label>
+        <input type="text" id="edit-grado" name="grado_seccion" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Encargado(a)</label>
+          <input type="text" id="edit-encargado" name="encargado" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Teléfono</label>
+          <input type="text" id="edit-telefono" name="telefono" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200">
+        <button type="button" onclick="closeModal('modal-edit')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded">Cancelar</button>
+        <button type="submit" class="px-5 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-sm">Actualizar Expediente</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+  function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+  function openEditModal(id, nie, nombre, grado, encargado, telefono) {
+    document.getElementById('form-edit').action = '/estudiantes/' + id + '/editar/';
+    document.getElementById('edit-nie').value = nie;
+    document.getElementById('edit-nombre').value = nombre;
+    document.getElementById('edit-grado').value = grado;
+    document.getElementById('edit-encargado').value = encargado;
+    document.getElementById('edit-telefono').value = telefono;
+    openModal('modal-edit');
+  }
+</script>
+{% endblock %}
