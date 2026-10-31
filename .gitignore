@@ -35,3 +35,8 @@ desktop.ini
 .flutter-plugins-dependencies
 .packages
 build/
+
+# Logs y temporales
+*.log
+scratch/
+

@@ -5,14 +5,8 @@
 {% block content %}
 <div class="space-y-8">
   <!-- Header & Actions -->
-  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-    <div>
-      <div class="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">
-        Dirección General • Calendario Escolar
-      </div>
-      <h2 class="text-2xl font-extrabold text-slate-900">Gestión de Ciclos y Períodos Escolares</h2>
-      <p class="text-sm text-slate-500">Configure los años lectivos, trimestres y controle el bloqueo oficial de notas.</p>
-    </div>
+  <div class="flex items-center justify-between">
+    <h2 class="text-xl font-bold text-slate-900">Períodos Escolares</h2>
 
     {% if puede_cerrar %}
     <div class="flex items-center space-x-2.5">
@@ -30,7 +24,6 @@
   <div class="space-y-4">
     <div class="flex items-center justify-between">
       <h3 class="text-base font-bold text-slate-900">Períodos de Evaluación (Trimestres)</h3>
-      <span class="text-xs text-slate-500">Bloqueo sincronizado con Web y App Móvil</span>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -116,14 +109,36 @@
             <td class="px-5 py-3.5 font-mono text-xs font-bold text-slate-400">#{{ a.id }}</td>
             <td class="px-5 py-3.5 font-bold text-slate-900">{{ a.anio }}</td>
             <td class="px-5 py-3.5">
-              <span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
-                {{ a.estado|default:"Activo" }}
-              </span>
+              {% if a.estado == 'Activo' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  Activo
+                </span>
+              {% elif a.estado == 'Cerrado' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                  Cerrado
+                </span>
+              {% else %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                  {{ a.estado|default:"Planificado" }}
+                </span>
+              {% endif %}
             </td>
             <td class="px-5 py-3.5 text-xs text-slate-500">{{ a.descripcion|default:"Ciclo Escolar Regular" }}</td>
             {% if puede_cerrar %}
-            <td class="px-5 py-3.5 text-right">
-              <form method="POST" action="{% url 'anio_delete' a.id %}" onsubmit="return confirm('¿Eliminar ciclo {{ a.anio }}?')" class="inline">
+            <td class="px-5 py-3.5 text-right space-x-2">
+              <form method="POST" action="{% url 'anio_toggle_estado' a.id %}" class="inline">
+                {% csrf_token %}
+                {% if a.estado == 'Activo' %}
+                  <button type="submit" class="px-2.5 py-1 text-slate-700 hover:bg-slate-100 border border-slate-300 rounded text-xs font-medium transition" title="Marcar ciclo como finalizado">
+                    Finalizar Ciclo
+                  </button>
+                {% else %}
+                  <button type="submit" class="px-2.5 py-1 text-emerald-700 hover:bg-emerald-50 border border-emerald-300 rounded text-xs font-medium transition" title="Reactivar ciclo escolar">
+                    Reabrir Ciclo
+                  </button>
+                {% endif %}
+              </form>
+              <form method="POST" action="{% url 'anio_delete' a.id %}" onsubmit="return confirm('¿Eliminar permanentemente el ciclo {{ a.anio }}?')" class="inline">
                 {% csrf_token %}
                 <button type="submit" class="text-rose-600 hover:text-rose-800 text-xs font-semibold">Eliminar</button>
               </form>

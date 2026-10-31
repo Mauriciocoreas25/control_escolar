@@ -1,49 +1,136 @@
 {% extends "portal/base.html" %}
 
-{% block title %}Emisión de Boletas - {{ institucion.nombre }}{% endblock %}
+{% block title %}Boletas de Calificaciones • {{ institucion.nombre|default:"Complejo Educativo Santa Sofía" }}{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
-  <div>
-    <div class="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">Certificaciones Oficiales</div>
-    <h2 class="text-2xl font-extrabold text-slate-900">Emisión de Boletas de Calificaciones</h2>
-    <p class="text-sm text-slate-500">Genera boletas individuales o por sección completa en formato PDF oficial para el centro escolar.</p>
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+      <h2 class="text-lg font-bold text-slate-900 tracking-tight">Boletas de Calificaciones</h2>
+      <p class="text-xs text-slate-500">Emisión e impresión de boletas trimestrales por sección o estudiante.</p>
+    </div>
+
+    <div class="flex items-center space-x-2">
+      <a href="{% url 'boletas_export_pdf' %}?seccion={{ seccion_filtro }}&periodo_id={{ periodo_filtro }}" target="_blank" class="px-3.5 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded-lg shadow-xs transition flex items-center gap-1.5" title="Descargar todas las boletas de la sección en PDF para imprimir">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span>Descargar Lote PDF</span>
+      </a>
+
+      <a href="{% url 'boletas_export_excel' %}?seccion={{ seccion_filtro }}&periodo_id={{ periodo_filtro }}" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition flex items-center gap-1.5 shadow-xs" title="Exportar resumen a Excel">
+        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span>Exportar Excel</span>
+      </a>
+    </div>
   </div>
 
-  <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-6">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+  <!-- Filters Bar -->
+  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+    <form method="GET" class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
       <div>
-        <label class="block text-xs font-semibold text-slate-700 mb-1">Año Lectivo:</label>
-        <select class="w-full text-xs rounded-lg border-slate-300 p-2.5 bg-slate-50 border">
-          <option>2026 (Activo)</option>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Período de Evaluación:</label>
+        <select name="periodo_id" class="w-full text-xs rounded-lg border-slate-300 p-2 bg-slate-50 border focus:ring-1 focus:ring-blue-900 focus:bg-white">
+          {% for p in periodos %}
+            <option value="{{ p.id }}" {% if periodo_filtro == p.id|stringformat:"i" %}selected{% endif %}>
+              {{ p.nombre }} {% if p.estado == 'Abierto' %}(En Curso){% else %}(Cerrado){% endif %}
+            </option>
+          {% endfor %}
         </select>
       </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-700 mb-1">Período / Trimestre:</label>
-        <select class="w-full text-xs rounded-lg border-slate-300 p-2.5 bg-slate-50 border">
-          <option>Trimestre 1 (Oficial - Cerrado)</option>
-          <option>Trimestre 2 (En Curso)</option>
-        </select>
-      </div>
+
       <div>
         <label class="block text-xs font-semibold text-slate-700 mb-1">Grado y Sección:</label>
-        <select class="w-full text-xs rounded-lg border-slate-300 p-2.5 bg-slate-50 border">
-          <option>Todas las Secciones (Matrícula Completa)</option>
-          <option>Primer Grado - Sección A</option>
-          <option>Segundo Grado - Sección A</option>
-          <option>Séptimo Grado - Sección A</option>
-          <option>1° Año de Bachillerato - Sección A</option>
+        <select name="seccion" class="w-full text-xs rounded-lg border-slate-300 p-2 bg-slate-50 border focus:ring-1 focus:ring-blue-900 focus:bg-white">
+          <option value="">-- Todas las Secciones --</option>
+          {% for sec in secciones %}
+            <option value="{{ sec }}" {% if seccion_filtro == sec %}selected{% endif %}>{{ sec }}</option>
+          {% endfor %}
         </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button type="submit" class="flex-1 py-2 px-3 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg transition shadow-xs flex items-center justify-center gap-1.5">
+          <span>Filtrar Padrón</span>
+        </button>
+        {% if seccion_filtro or periodo_filtro %}
+          <a href="{% url 'boletas_view' %}" class="px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 border border-slate-300 rounded-lg transition" title="Limpiar filtros">
+            Limpiar
+          </a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  <!-- Table: Padrón de Estudiantes para Emisión de Boletas -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+    <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2 bg-slate-50/50">
+      <div class="text-xs text-slate-600">
+        Período: <strong class="text-slate-900">{{ periodo_nombre }}</strong>
+        {% if seccion_filtro %} &bull; Sección: <strong class="text-slate-900">{{ seccion_filtro }}</strong>{% endif %}
+      </div>
+      <div class="text-xs text-slate-500 font-medium">
+        Total Boletas Listas: <strong class="text-slate-900">{{ total_boletas }}</strong>
       </div>
     </div>
 
-    <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200">
-      <button onclick="window.print()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition">
-        Imprimir / Vista Previa
-      </button>
-      <button onclick="alert('Generando lote de boletas oficiales en PDF...')" class="px-5 py-2 bg-blue-900 hover:bg-blue-950 text-white rounded-lg text-xs font-semibold shadow-xs transition">
-        Descargar Lote PDF
-      </button>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs text-slate-600">
+        <thead class="bg-slate-50 text-[11px] uppercase text-slate-500 font-bold border-b border-slate-200 tracking-wider">
+          <tr>
+            <th class="px-5 py-3">NIE</th>
+            <th class="px-5 py-3">Nombre Completo del Alumno</th>
+            <th class="px-5 py-3">Grado / Sección</th>
+            <th class="px-5 py-3 text-center">Materias</th>
+            <th class="px-5 py-3 text-center">Promedio</th>
+            <th class="px-5 py-3 text-center">Estado</th>
+            <th class="px-5 py-3 text-right">Boleta Individual</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for b in boletas %}
+          <tr class="hover:bg-slate-50/70 transition-colors">
+            <td class="px-5 py-3.5 font-mono text-blue-900 font-bold">{{ b.estudiante.nie }}</td>
+            <td class="px-5 py-3.5 font-bold text-slate-900">{{ b.estudiante.nombre_completo }}</td>
+            <td class="px-5 py-3.5">
+              <span class="inline-flex px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                {{ b.estudiante.grado_seccion }}
+              </span>
+            </td>
+            <td class="px-5 py-3.5 text-center font-medium text-slate-700">
+              {{ b.materias|length }}
+            </td>
+            <td class="px-5 py-3.5 text-center">
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold {% if b.promedio_general >= 7.0 %}text-slate-900{% elif b.promedio_general >= 6.0 %}text-slate-700{% else %}text-rose-600{% endif %}">
+                {{ b.promedio_general }}
+              </span>
+            </td>
+            <td class="px-5 py-3.5 text-center">
+              {% if b.aprobado %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  Aprobado
+                </span>
+              {% else %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-800 border border-rose-200">
+                  En Observación
+                </span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3.5 text-right">
+              <a href="{% url 'boletas_export_pdf' %}?estudiante_id={{ b.estudiante.id }}&periodo_id={{ periodo_filtro }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-slate-700 hover:text-white bg-white hover:bg-blue-900 border border-slate-300 rounded shadow-xs transition" title="Descargar boleta individual en PDF">
+                <svg class="w-3.5 h-3.5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                <span>Boleta PDF</span>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="px-5 py-8 text-center text-xs text-slate-400">
+              No se encontraron alumnos para los filtros seleccionados.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 </div>

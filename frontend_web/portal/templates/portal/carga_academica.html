@@ -1,96 +1,258 @@
 {% extends "portal/base.html" %}
 
-{% block title %}Asignaturas y Carga Académica - {{ institucion.nombre }}{% endblock %}
+{% block title %}Carga Académica • {{ institucion.nombre|default:"Complejo Educativo Santa Sofía" }}{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
   <!-- Header -->
-  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
-      <div class="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">
-        Plan de Estudios • Carga Académica
-      </div>
-      <h2 class="text-2xl font-extrabold text-slate-900">Catálogo de Asignaturas y Materias</h2>
-      <p class="text-sm text-slate-500">Administre las materias oficiales asignadas por grado, sección y docente.</p>
+      <h2 class="text-xl font-bold text-slate-900 tracking-tight">Carga Académica Docente</h2>
+      <p class="text-xs text-slate-500">Distribución de materias por docente y ciclo académico.</p>
     </div>
 
     {% if user_rol == 'Director' %}
-    <button onclick="openModal('modal-asignatura')" class="px-4 py-2 text-xs font-bold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-sm transition">
-      Registrar Nueva Asignatura
-    </button>
+    <div class="flex items-center gap-2">
+      <button onclick="openModal('modal-asignatura')" class="px-3.5 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded-lg shadow-xs transition flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        <span>Nueva Asignatura</span>
+      </button>
+    </div>
     {% endif %}
   </div>
 
-  <!-- Asignaturas Table -->
-  <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-    <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
-      <h3 class="text-sm font-bold text-slate-800">Materias Activas en el Sistema</h3>
-      <span class="text-xs text-slate-500">Total: <strong class="text-slate-900">{{ total }}</strong> asignaturas</span>
+  <!-- Métricas Rápidas -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+      <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Docentes con Carga</p>
+      <p class="text-2xl font-bold text-blue-900 mt-1">{{ total_cargas }}</p>
+      <p class="text-[11px] text-slate-500 mt-0.5">Asignaciones curriculares</p>
     </div>
-    
-    <div class="overflow-x-auto">
-      <table class="w-full text-left text-sm text-slate-600">
-        <thead class="bg-slate-100/75 text-xs uppercase text-slate-500 font-semibold border-b border-slate-200">
-          <tr>
-            <th class="px-5 py-3.5">Código</th>
-            <th class="px-5 py-3.5">Nombre de la Asignatura</th>
-            <th class="px-5 py-3.5">Grado y Sección</th>
-            <th class="px-5 py-3.5">Docente Asignado</th>
-            <th class="px-5 py-3.5">Descripción</th>
-            {% if user_rol == 'Director' %}<th class="px-5 py-3.5 text-right">Acciones</th>{% endif %}
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-200">
-          {% for a in asignaturas %}
-          <tr class="hover:bg-slate-50/80 transition-colors">
-            <td class="px-5 py-3.5 font-mono text-xs font-bold text-blue-700">
-              <span class="px-2 py-1 rounded bg-blue-50 border border-blue-200">{{ a.codigo }}</span>
-            </td>
-            <td class="px-5 py-3.5 font-semibold text-slate-900">{{ a.nombre }}</td>
-            <td class="px-5 py-3.5">
-              <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                {{ a.grado_seccion|default:"General" }}
-              </span>
-            </td>
-            <td class="px-5 py-3.5 text-xs text-slate-700 font-medium">
-              {% if a.profesor_nombre and a.profesor_nombre != "Sin asignar" %}
-                <span class="inline-flex items-center px-2.5 py-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  {{ a.profesor_nombre }}
-                </span>
-              {% else %}
-                <span class="text-slate-400 italic">Sin asignar</span>
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+      <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Materias Curriculares</p>
+      <p class="text-2xl font-bold text-slate-900 mt-1">10</p>
+      <p class="text-[11px] text-slate-500 mt-0.5">Plan Curricular MINED</p>
+    </div>
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+      <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Secciones Activas</p>
+      <p class="text-2xl font-bold text-slate-900 mt-1">18</p>
+      <p class="text-[11px] text-slate-500 mt-0.5">1º a 9º Grado (A y B)</p>
+    </div>
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+      <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Cobertura de Clases</p>
+      <p class="text-2xl font-bold text-emerald-700 mt-1">100%</p>
+      <p class="text-[11px] text-emerald-600 mt-0.5">Sin vacantes</p>
+    </div>
+  </div>
+
+  <!-- Pestañas de Vista -->
+  <div class="border-b border-slate-200">
+    <nav class="flex space-x-6 text-sm font-medium">
+      <button onclick="switchTab('tab-consolidada')" id="btn-tab-consolidada" class="py-3 px-1 border-b-2 border-blue-900 text-blue-900 font-bold flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        <span>Carga por Materia y Ciclo</span>
+        <span class="px-2 py-0.5 text-xs rounded-full bg-blue-50 text-blue-900 font-semibold">{{ total_cargas }}</span>
+      </button>
+
+      <button onclick="switchTab('tab-detalle')" id="btn-tab-detalle" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <span>Detalle por Sección</span>
+        <span class="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600 font-semibold">{{ total }}</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ==================== VISTA 1: CARGA CONSOLIDADA POR MATERIA Y CICLO ==================== -->
+  <div id="tab-consolidada" class="space-y-6">
+    {% for ciclo_nombre, items in cargas_por_ciclo.items %}
+    <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <!-- Encabezado del Ciclo -->
+      <div class="p-4 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5">
+          <span class="w-3 h-3 rounded-full bg-blue-900 shrink-0"></span>
+          <h3 class="text-sm font-bold text-slate-900">{{ ciclo_nombre }}</h3>
+        </div>
+        <span class="text-xs text-slate-500">{{ items|length }} materias asignadas</span>
+      </div>
+
+      <!-- Tabla de Materias del Ciclo -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-600">
+          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500 font-bold border-b border-slate-200 tracking-wider">
+            <tr>
+              <th class="px-5 py-3">Materia</th>
+              <th class="px-5 py-3">Docente Titular Responsable</th>
+              <th class="px-5 py-3">Grados y Secciones que Atiende</th>
+              <th class="px-5 py-3 text-center">Secciones</th>
+              {% if user_rol == 'Director' %}<th class="px-5 py-3 text-right">Acciones</th>{% endif %}
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for c in items %}
+            <tr class="hover:bg-slate-50/70 transition-colors">
+              <!-- Materia -->
+              <td class="px-5 py-3.5 font-bold text-slate-900 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                <span>{{ c.materia }}</span>
+              </td>
+
+              <!-- Docente Titular -->
+              <td class="px-5 py-3.5">
+                {% if c.profesor_nombre and c.profesor_nombre != "Sin asignar" %}
+                  <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-900 border border-blue-200">
+                    <svg class="w-3.5 h-3.5 mr-1.5 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    {{ c.profesor_nombre }}
+                  </span>
+                {% else %}
+                  <span class="text-rose-600 font-semibold italic">Sin docente asignado</span>
+                {% endif %}
+              </td>
+
+              <!-- Secciones Asignadas -->
+              <td class="px-5 py-3.5 text-slate-700">
+                <div class="flex flex-wrap gap-1">
+                  {% for sec in c.secciones %}
+                    <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      {{ sec }}
+                    </span>
+                  {% endfor %}
+                </div>
+              </td>
+
+              <!-- Total Secciones -->
+              <td class="px-5 py-3.5 text-center font-bold text-slate-700">
+                {{ c.total_secciones }}
+              </td>
+
+              <!-- Botón Reasignar Carga Completa -->
+              {% if user_rol == 'Director' %}
+              <td class="px-5 py-3.5 text-right whitespace-nowrap">
+                <button type="button" 
+                  onclick="openReasignarMateriaModal('{{ c.materia }}', '{{ c.ciclo }}', '{{ c.profesor_nombre }}', '{{ c.ids_str }}')"
+                  class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-xs transition inline-flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                  <span>Reasignar Docente</span>
+                </button>
+              </td>
               {% endif %}
-            </td>
-            <td class="px-5 py-3.5 text-xs text-slate-500">{{ a.descripcion|default:"Materia del plan curricular" }}</td>
-            {% if user_rol == 'Director' %}
-            <td class="px-5 py-3.5 text-right">
-              <form method="POST" action="{% url 'asignatura_delete' a.id %}" onsubmit="return confirm('¿Desea eliminar la asignatura {{ a.nombre }}?')" class="inline">
-                {% csrf_token %}
-                <button type="submit" class="text-rose-600 hover:text-rose-800 text-xs font-semibold">Eliminar</button>
-              </form>
-            </td>
-            {% endif %}
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="6" class="px-5 py-8 text-center text-slate-400 text-xs">
-              No hay asignaturas registradas.
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ==================== VISTA 2: DETALLE POR SECCIÓN ==================== -->
+  <div id="tab-detalle" class="hidden space-y-4">
+    <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+        <h3 class="text-sm font-bold text-slate-900">Listado Detallado de Asignaturas por Sección</h3>
+        <span class="text-xs text-slate-500">Total: <strong class="text-slate-900">{{ total }}</strong> registros</span>
+      </div>
+      
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-600">
+          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500 font-bold border-b border-slate-200 tracking-wider">
+            <tr>
+              <th class="px-5 py-3">Código</th>
+              <th class="px-5 py-3">Materia</th>
+              <th class="px-5 py-3">Grado y Sección</th>
+              <th class="px-5 py-3">Docente Asignado</th>
+              {% if user_rol == 'Director' %}<th class="px-5 py-3 text-right">Acción</th>{% endif %}
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for a in asignaturas %}
+            <tr class="hover:bg-slate-50/70 transition-colors">
+              <td class="px-5 py-3 font-mono font-bold text-blue-900">
+                <span class="px-2 py-0.5 rounded bg-blue-50 border border-blue-200">{{ a.codigo }}</span>
+              </td>
+              <td class="px-5 py-3 font-bold text-slate-900">{{ a.nombre }}</td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                  {{ a.grado_seccion|default:"General" }}
+                </span>
+              </td>
+              <td class="px-5 py-3 font-medium">
+                {{ a.profesor_nombre }}
+              </td>
+              {% if user_rol == 'Director' %}
+              <td class="px-5 py-3 text-right whitespace-nowrap">
+                <button type="button" onclick="openEditAsignaturaModal('{{ a.id }}', '{{ a.codigo }}', '{{ a.nombre }}', '{{ a.grado_seccion|default:'' }}', '{{ a.profesor_nombre|default:'' }}', '{{ a.descripcion|default:'' }}')" 
+                  class="text-blue-900 hover:text-blue-950 font-semibold text-xs">
+                  Editar
+                </button>
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
 
 {% if user_rol == 'Director' %}
-<!-- Modal: Registrar Asignatura -->
-<div id="modal-asignatura" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+<!-- ==================== MODAL: REASIGNAR MATERIA Y CICLO COMPLETO ==================== -->
+<div id="modal-reasignar-materia" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
   <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4">
     <div class="flex items-center justify-between pb-3 border-b border-slate-200">
       <div>
-        <h3 class="text-lg font-bold text-slate-900">Registrar Asignatura</h3>
+        <h3 class="text-base font-bold text-slate-900">Reasignar Carga de Materia</h3>
+        <p class="text-xs text-slate-500">Asigne esta materia a un nuevo docente para todo el ciclo</p>
+      </div>
+      <button onclick="closeModal('modal-reasignar-materia')" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <form method="POST" action="{% url 'carga_academica_reasignar_materia' %}" class="space-y-4">
+      {% csrf_token %}
+      <input type="hidden" name="materia" id="re-materia-val">
+      <input type="hidden" name="ciclo" id="re-ciclo-val">
+      <input type="hidden" name="asignatura_ids" id="re-ids-val">
+
+      <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-slate-500 font-semibold">Materia:</span>
+          <span id="re-materia-txt" class="font-bold text-slate-900 text-sm">---</span>
+        </div>
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-slate-500 font-semibold">Ciclo Académico:</span>
+          <span id="re-ciclo-txt" class="font-medium text-slate-700">---</span>
+        </div>
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-slate-500 font-semibold">Docente Actual:</span>
+          <span id="re-docente-actual-txt" class="font-semibold text-rose-700">---</span>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Seleccionar Nuevo Docente Titular *</label>
+        <select name="nuevo_profesor_nombre" required class="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50 font-medium">
+          <option value="">-- Seleccionar Docente --</option>
+          {% for p in profesores %}
+            <option value="{{ p.nombre }}">{{ p.nombre }} ({{ p.especialidad|default:"Docente" }})</option>
+          {% endfor %}
+        </select>
+        <p class="text-[11px] text-slate-500 mt-1">Al confirmar, el nuevo docente asumirá todas las secciones de este ciclo y se actualizarán sus horarios semanales.</p>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-slate-200">
+        <button type="button" onclick="closeModal('modal-reasignar-materia')" class="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+        <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded-lg shadow-xs transition">Confirmar Reasignación</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Registrar Asignatura Individual -->
+<div id="modal-asignatura" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Registrar Asignatura</h3>
         <p class="text-xs text-slate-500">Asigne la materia a un grado, sección y docente</p>
       </div>
       <button onclick="closeModal('modal-asignatura')" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
@@ -100,37 +262,30 @@
       {% csrf_token %}
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Código de la Asignatura *</label>
-          <input type="text" name="codigo" required placeholder="Ej: MAT-7A, CIEN-02" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 focus:outline-none">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Código *</label>
+          <input type="text" name="codigo" required placeholder="Ej: MAT-7A, CIEN-02" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50 font-mono">
         </div>
 
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre de la Materia *</label>
-          <input type="text" name="nombre" required placeholder="Ej: Matemáticas" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 focus:outline-none">
+          <input type="text" name="nombre" required placeholder="Ej: Matemáticas" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50">
         </div>
       </div>
 
       <div>
         <label class="block text-xs font-semibold text-slate-700 mb-1">Grado y Sección Asignada *</label>
-        <select name="grado_seccion" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 focus:outline-none bg-white">
-          <option value="Primer Grado - Sección A">Primer Grado - Sección A</option>
-          <option value="Segundo Grado - Sección A">Segundo Grado - Sección A</option>
-          <option value="Tercer Grado - Sección A">Tercer Grado - Sección A</option>
-          <option value="Cuarto Grado - Sección A">Cuarto Grado - Sección A</option>
-          <option value="Quinto Grado - Sección A">Quinto Grado - Sección A</option>
-          <option value="Sexto Grado - Sección A">Sexto Grado - Sección A</option>
-          <option value="Séptimo Grado - Sección A" selected>Séptimo Grado - Sección A</option>
-          <option value="Octavo Grado - Sección A">Octavo Grado - Sección A</option>
-          <option value="Noveno Grado - Sección A">Noveno Grado - Sección A</option>
-          <option value="1° Año Bachillerato - Sección A">1° Año Bachillerato - Sección A</option>
-          <option value="2° Año Bachillerato - Sección A">2° Año Bachillerato - Sección A</option>
+        <select name="grado_seccion" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50">
+          <option value="">-- Seleccionar Sección --</option>
+          {% for s in secciones %}
+            <option value="{{ s.grado }} - {{ s.seccion }}">{{ s.grado }} - {{ s.seccion }}</option>
+          {% endfor %}
           <option value="General">General (Todos los grados)</option>
         </select>
       </div>
 
       <div>
         <label class="block text-xs font-semibold text-slate-700 mb-1">Docente Asignado</label>
-        <select name="profesor_nombre" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 focus:outline-none bg-white">
+        <select name="profesor_nombre" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50">
           <option value="Sin asignar">Sin asignar</option>
           {% for p in profesores %}
             <option value="{{ p.nombre }}">{{ p.nombre }} ({{ p.especialidad|default:"Docente" }})</option>
@@ -140,22 +295,127 @@
 
       <div>
         <label class="block text-xs font-semibold text-slate-700 mb-1">Descripción / Observaciones</label>
-        <textarea name="descripcion" rows="2" placeholder="Descripción del contenido..." class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 focus:outline-none"></textarea>
+        <textarea name="descripcion" rows="2" placeholder="Detalles de la asignatura..." class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50"></textarea>
       </div>
 
-      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200">
-        <button type="button" onclick="closeModal('modal-asignatura')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded">Cancelar</button>
-        <button type="submit" class="px-5 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-sm">Guardar Asignatura</button>
+      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-slate-200">
+        <button type="button" onclick="closeModal('modal-asignatura')" class="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded">Cancelar</button>
+        <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-xs">Guardar Asignatura</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Editar Asignatura Individual -->
+<div id="modal-editar-asignatura" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Editar Asignatura</h3>
+        <p class="text-xs text-slate-500">Modifique los datos individuales de la materia</p>
+      </div>
+      <button onclick="closeModal('modal-editar-asignatura')" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <form method="POST" id="form-editar-asignatura" action="" class="space-y-4">
+      {% csrf_token %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Código *</label>
+          <input type="text" name="codigo" id="edit-codigo" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50 font-mono">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre de la Materia *</label>
+          <input type="text" name="nombre" id="edit-nombre" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Grado y Sección *</label>
+        <select name="grado_seccion" id="edit-grado-seccion" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50">
+          <option value="General">General (Todos los grados)</option>
+          {% for s in secciones %}
+            <option value="{{ s.grado }} - {{ s.seccion }}">{{ s.grado }} - {{ s.seccion }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Docente Asignado</label>
+        <select name="profesor_nombre" id="edit-profesor" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50">
+          <option value="Sin asignar">Sin asignar</option>
+          {% for p in profesores %}
+            <option value="{{ p.nombre }}">{{ p.nombre }} ({{ p.especialidad|default:"Docente" }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Descripción / Observaciones</label>
+        <textarea name="descripcion" id="edit-descripcion" rows="2" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50"></textarea>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-slate-200">
+        <button type="button" onclick="closeModal('modal-editar-asignatura')" class="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded">Cancelar</button>
+        <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-xs">Guardar Cambios</button>
       </div>
     </form>
   </div>
 </div>
 {% endif %}
-{% endblock %}
 
-{% block scripts %}
 <script>
-  function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-  function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function switchTab(tabId) {
+  const tabConsolidada = document.getElementById('tab-consolidada');
+  const tabDetalle = document.getElementById('tab-detalle');
+  const btnConsolidada = document.getElementById('btn-tab-consolidada');
+  const btnDetalle = document.getElementById('btn-tab-detalle');
+
+  if (tabId === 'tab-consolidada') {
+    tabConsolidada.classList.remove('hidden');
+    tabDetalle.classList.add('hidden');
+    btnConsolidada.className = 'py-3 px-1 border-b-2 border-blue-900 text-blue-900 font-bold flex items-center gap-2';
+    btnDetalle.className = 'py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 flex items-center gap-2';
+  } else {
+    tabConsolidada.classList.add('hidden');
+    tabDetalle.classList.remove('hidden');
+    btnConsolidada.className = 'py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 flex items-center gap-2';
+    btnDetalle.className = 'py-3 px-1 border-b-2 border-blue-900 text-blue-900 font-bold flex items-center gap-2';
+  }
+}
+
+function openReasignarMateriaModal(materia, ciclo, docenteActual, idsStr) {
+  document.getElementById('re-materia-val').value = materia;
+  document.getElementById('re-ciclo-val').value = ciclo;
+  document.getElementById('re-ids-val').value = idsStr;
+  
+  document.getElementById('re-materia-txt').textContent = materia;
+  document.getElementById('re-ciclo-txt').textContent = ciclo;
+  document.getElementById('re-docente-actual-txt').textContent = docenteActual || 'Sin asignar';
+  
+  openModal('modal-reasignar-materia');
+}
+
+function openEditAsignaturaModal(id, codigo, nombre, gradoSeccion, profesorNombre, descripcion) {
+  const form = document.getElementById('form-editar-asignatura');
+  form.action = `/asignaturas/${id}/editar/`;
+  document.getElementById('edit-codigo').value = codigo;
+  document.getElementById('edit-nombre').value = nombre;
+  document.getElementById('edit-grado-seccion').value = gradoSeccion || 'General';
+  document.getElementById('edit-profesor').value = profesorNombre || 'Sin asignar';
+  document.getElementById('edit-descripcion').value = descripcion || '';
+  openModal('modal-editar-asignatura');
+}
+
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('hidden');
+}
+
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('hidden');
+}
 </script>
 {% endblock %}

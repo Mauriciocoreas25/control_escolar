@@ -47,4 +47,10 @@ def get_current_user(usuario_id: int, db: Session = Depends(get_db)):
     usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if not usuario.estado:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso denegado: Usuario suspendido o inactivo."
+        )
     return usuario
+

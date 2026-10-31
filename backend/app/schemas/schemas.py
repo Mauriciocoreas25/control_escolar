@@ -27,8 +27,17 @@ class AsignaturaCreate(BaseModel):
     profesor_nombre: Optional[str] = "Sin asignar"
     descripcion: Optional[str] = None
 
+class AsignaturaUpdate(BaseModel):
+    nombre: Optional[str] = None
+    codigo: Optional[str] = None
+    grado_seccion: Optional[str] = None
+    profesor_nombre: Optional[str] = None
+    descripcion: Optional[str] = None
+
 class AsignaturaResponse(AsignaturaCreate):
     id: int
+    aula_codigo: Optional[str] = None
+    aula_nombre: Optional[str] = None
     class Config:
         from_attributes = True
 class PeriodoCreate(BaseModel):
@@ -55,6 +64,7 @@ class CalificacionCreate(BaseModel):
     asignatura_id: int
     periodo_id: int
     nota: float
+    tipo_evaluacion: Optional[str] = "Actividad 1: Examen Parcial (35%)"
 
 class CalificacionResponse(CalificacionCreate):
     id: int
@@ -100,4 +110,80 @@ class UsuarioResponse(BaseModel):
 
 class UsuarioPasswordUpdate(BaseModel):
     password: str
-
+
+# ==================== AULAS Y HORARIOS ====================
+class AulaCreate(BaseModel):
+    codigo: str
+    nombre: str
+    tipo: Optional[str] = "Estandar"
+    capacidad: Optional[int] = None
+    ubicacion: Optional[str] = None
+    estado: Optional[bool] = True
+
+class AulaResponse(AulaCreate):
+    id: int
+    class Config:
+        from_attributes = True
+
+class GradoSeccionCreate(BaseModel):
+    grado: str
+    seccion: str
+    anio_lectivo: int
+    aula_base_id: Optional[int] = None
+
+class GradoSeccionResponse(BaseModel):
+    id: int
+    grado: str
+    seccion: str
+    anio_lectivo: int
+    aula_base_id: Optional[int] = None
+    aula_codigo: Optional[str] = None
+    aula_nombre: Optional[str] = None
+    class Config:
+        from_attributes = True
+
+class HorarioCreate(BaseModel):
+    grado_seccion_id: int
+    materia_id: int
+    profesor_id: int
+    anio_lectivo_id: Optional[int] = 1
+    dia_semana: str
+    hora_inicio: str
+    hora_fin: str
+    aula_especial_id: Optional[int] = None
+
+class HorarioResponse(BaseModel):
+    id: int
+    grado_seccion_id: int
+    materia_id: int
+    profesor_id: int
+    anio_lectivo_id: int
+    dia_semana: str
+    hora_inicio: str
+    hora_fin: str
+    aula_especial_id: Optional[int] = None
+    grado_seccion: Optional[str] = None
+    materia_nombre: Optional[str] = None
+    profesor_nombre: Optional[str] = None
+    aula_codigo: Optional[str] = None
+    aula_nombre: Optional[str] = None
+    es_aula_especial: bool = False
+    class Config:
+        from_attributes = True
+
+
+
+
+class ActividadEvaluativaCreate(BaseModel):
+    asignatura_id: int
+    periodo_id: int
+    nombre: str
+    tipo: Optional[str] = "Examen"
+    ponderacion: Optional[float] = 0.0
+    fecha: Optional[str] = None
+    descripcion: Optional[str] = None
+
+class ActividadEvaluativaResponse(ActividadEvaluativaCreate):
+    id: int
+    class Config:
+        from_attributes = True

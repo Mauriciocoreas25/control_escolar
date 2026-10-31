@@ -1,150 +1,171 @@
 {% extends "portal/base.html" %}
 
-{% block title %}Dashboard General - {{ institucion.nombre }}{% endblock %}
+{% block title %}Dashboard General • {{ institucion.nombre|default:"Complejo Educativo Santa Sofía" }}{% endblock %}
 
 {% block content %}
-<div class="space-y-8">
-  <!-- Title & Actions -->
-  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+<div class="space-y-6">
+  {% if user_rol == 'Director' %}
+  <!-- Title & Actions (Solo Director) -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
-      <div class="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">
-        {{ institucion.nombre }} / Panel de Control
-      </div>
-      <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">
-        {% if user_rol == 'Director' %}Panel de Control de Dirección{% else %}Panel de Operaciones de Secretaría{% endif %}
-      </h2>
-      <p class="text-sm text-slate-500 mt-1">Supervisión académica y control operativo — Ciclo {{ institucion.anio_lectivo }}</p>
+      <h2 class="text-lg font-bold text-slate-900 tracking-tight">Panel de Control General</h2>
+      <p class="text-xs text-slate-500">Resumen institucional del ciclo académico {{ institucion.anio_lectivo|default:"2026" }}.</p>
     </div>
-    
-    <div class="flex items-center space-x-3">
-      <a href="{% url 'dashboard' %}" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg shadow-xs hover:bg-slate-50 transition">
-        Actualizar Datos
+    <div class="flex items-center space-x-2.5">
+      <a href="{% url 'dashboard' %}" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg shadow-xs hover:bg-slate-50 transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        <span>Actualizar</span>
       </a>
-
-      {% if user_rol == 'Secretaria' %}
-        <a href="{% url 'estudiantes_list' %}" class="px-4 py-2 text-xs font-semibold text-white bg-emerald-700 rounded-lg shadow-sm hover:bg-emerald-800 transition">
-          Nueva Matrícula
-        </a>
-      {% elif user_rol == 'Director' %}
-        <a href="{% url 'ajustes_view' %}" class="px-4 py-2 text-xs font-semibold text-white bg-blue-900 rounded-lg shadow-sm hover:bg-blue-950 transition">
-          Configurar Escuela
-        </a>
-      {% endif %}
+      <a href="{% url 'ajustes_view' %}" class="px-3.5 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded-lg shadow-xs transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        <span>Ajustes Institucionales</span>
+      </a>
     </div>
   </div>
+  {% endif %}
 
-  <!-- Metric KPI Cards -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 {% if user_rol == 'Director' %}lg:grid-cols-4{% else %}lg:grid-cols-3{% endif %} gap-5">
+  <!-- Tarjetas de Métricas Sobrias y Corporativas -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 {% if user_rol == 'Director' %}lg:grid-cols-4{% else %}lg:grid-cols-3{% endif %} gap-4">
+    
     <!-- Total Estudiantes -->
-    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-      <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Estudiantes</p>
-      <h3 class="text-3xl font-extrabold text-slate-900 mt-2">{{ total_estudiantes }}</h3>
-      <div class="mt-4 flex items-center text-xs text-slate-600">
-        <span class="text-emerald-700 font-semibold mr-2">Matrícula activa</span>
-        <span>Año {{ institucion.anio_lectivo }}</span>
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Estudiantes</p>
+        <span class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+          </svg>
+        </span>
+      </div>
+      <div class="mt-3">
+        <h3 class="text-2xl font-bold text-slate-900">{{ total_estudiantes }}</h3>
+        <p class="text-xs text-slate-500 mt-1">Matrícula activa en el sistema</p>
       </div>
     </div>
 
     {% if user_rol == 'Director' %}
     <!-- Planta Docente (SOLO VISIBLE PARA DIRECTOR) -->
-    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-      <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Planta Docente</p>
-      <h3 class="text-3xl font-extrabold text-slate-900 mt-2">{{ total_docentes }}</h3>
-      <div class="mt-4 flex items-center text-xs text-slate-600">
-        <span class="text-blue-700 font-semibold mr-2">Personal activo</span>
-        <span>Carga completa</span>
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Planta Docente</p>
+        <span class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+          </svg>
+        </span>
+      </div>
+      <div class="mt-3">
+        <h3 class="text-2xl font-bold text-slate-900">{{ total_docentes }}</h3>
+        <p class="text-xs text-slate-500 mt-1">Profesores con asignación activa</p>
       </div>
     </div>
     {% endif %}
 
     <!-- Secciones Activas -->
-    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-      <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Secciones Activas</p>
-      <h3 class="text-3xl font-extrabold text-slate-900 mt-2">{{ secciones_activas }}</h3>
-      <div class="mt-4 flex items-center text-xs text-slate-600">
-        <span class="font-semibold text-slate-700 mr-2">Aulas asignadas</span>
-        <span>Infraestructura activa</span>
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Secciones</p>
+        <span class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+          </svg>
+        </span>
+      </div>
+      <div class="mt-3">
+        <h3 class="text-2xl font-bold text-slate-900">{{ secciones_activas }}</h3>
+        <p class="text-xs text-slate-500 mt-1">Aulas y grupos habilitados</p>
       </div>
     </div>
 
-    <!-- Rendimiento Académico -->
-    <div class="bg-white p-5 rounded-xl border border-rose-200 shadow-xs bg-rose-50/20">
-      <p class="text-xs font-bold text-rose-600 uppercase tracking-wider">Atención Académica</p>
-      <h3 class="text-3xl font-extrabold text-rose-700 mt-2">{{ alumnos_riesgo }}</h3>
-      <div class="mt-4 flex items-center text-xs text-rose-600">
-        <span class="font-semibold mr-1">Promedio &lt; 6.0</span>
-        <span>Seguimiento especial</span>
+    <!-- Rendimiento Académico / Alumnos en Riesgo -->
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Atención Académica</p>
+        <span class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+        </span>
+      </div>
+      <div class="mt-3">
+        <h3 class="text-2xl font-bold text-rose-700">{{ alumnos_riesgo }}</h3>
+        <p class="text-xs text-slate-500 mt-1">Estudiantes con promedio &lt; 6.0</p>
       </div>
     </div>
   </div>
 
   {% if user_rol == 'Director' %}
-  <!-- Table: Control de Trimestres y Cierre de Notas (SOLO VISIBLE PARA DIRECTOR) -->
+  <!-- Table: Control de Trimestres y Cierre de Notas -->
   <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-    <div class="p-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-slate-50/50">
+    <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-50/50">
       <div>
-        <h3 class="text-base font-bold text-slate-900">Control de Trimestres y Cierre de Calificaciones</h3>
-        <p class="text-xs text-slate-500 mt-1">El cierre de período bloquea las modificaciones extemporáneas de calificaciones en la app móvil y web.</p>
+        <h3 class="text-sm font-bold text-slate-900">
+          Control de Trimestres y Cierre de Calificaciones
+        </h3>
+        <p class="text-xs text-slate-500 mt-0.5">El cierre bloquea el ingreso o edición de notas por parte del personal docente.</p>
       </div>
-      <span class="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+      <span class="text-xs font-semibold text-slate-600 bg-white px-2.5 py-1 rounded border border-slate-200 self-start sm:self-auto">
         Año Escolar {{ institucion.anio_lectivo }}
       </span>
     </div>
 
     <div class="overflow-x-auto">
-      <table class="w-full text-left text-sm text-slate-600">
-        <thead class="bg-slate-100/75 text-xs uppercase text-slate-500 font-semibold border-b border-slate-200">
+      <table class="w-full text-left text-xs text-slate-600">
+        <thead class="bg-slate-50 text-[11px] uppercase text-slate-500 font-bold border-b border-slate-200 tracking-wider">
           <tr>
-            <th class="px-5 py-3.5">Período / Trimestre</th>
-            <th class="px-5 py-3.5">Vigencia</th>
-            <th class="px-5 py-3.5">Estado Oficial</th>
-            <th class="px-5 py-3.5">Progreso Docente</th>
-            <th class="px-5 py-3.5 text-right">Acción de Dirección</th>
+            <th class="px-5 py-3">Período / Trimestre</th>
+            <th class="px-5 py-3">Vigencia</th>
+            <th class="px-5 py-3">Estado</th>
+            <th class="px-5 py-3">Avance</th>
+            <th class="px-5 py-3 text-right">Acción</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-200">
+        <tbody class="divide-y divide-slate-100">
           {% for p in periodos %}
-          <tr class="hover:bg-slate-50/80 transition-colors {% if p.estado == 'Abierto' %}bg-blue-50/30{% endif %}">
-            <td class="px-5 py-4">
-              <div>
-                <div class="font-semibold text-slate-900">{{ p.nombre }}</div>
-                <div class="text-xs text-slate-400">Año {{ institucion.anio_lectivo }}</div>
-              </div>
+          <tr class="hover:bg-slate-50/70 transition-colors">
+            <td class="px-5 py-3.5">
+              <div class="font-bold text-slate-900">{{ p.nombre }}</div>
+              <div class="text-[11px] text-slate-400">Año {{ institucion.anio_lectivo }}</div>
             </td>
-            <td class="px-5 py-4 text-xs">
+            <td class="px-5 py-3.5">
               <div class="font-medium text-slate-700">{{ p.vigencia }}</div>
-              <div class="text-slate-400">{{ institucion.regimen }}</div>
+              <div class="text-[11px] text-slate-400">{{ institucion.regimen }}</div>
             </td>
-            <td class="px-5 py-4">
+            <td class="px-5 py-3.5">
               {% if p.estado == 'Abierto' %}
-                <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   En Curso / Abierto
                 </span>
               {% else %}
-                <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-slate-100 text-slate-700 border border-slate-300">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
                   Cerrado y Bloqueado
                 </span>
               {% endif %}
             </td>
-            <td class="px-5 py-4">
+            <td class="px-5 py-3.5">
               <div class="w-36">
-                <div class="flex justify-between text-xs font-medium text-slate-700 mb-1">
+                <div class="flex justify-between text-[11px] font-medium text-slate-700 mb-1">
                   <span>{{ p.avance }}% Calificado</span>
                 </div>
-                <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                  <div class="{% if p.estado == 'Abierto' %}bg-blue-600{% else %}bg-emerald-500{% endif %} h-1.5 rounded-full" style="width: {{ p.avance }}%"></div>
+                <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                  <div class="bg-blue-800 h-1.5 rounded-full" style="width: {{ p.avance }}%"></div>
                 </div>
               </div>
             </td>
-            <td class="px-5 py-4 text-right">
+            <td class="px-5 py-3.5 text-right">
               <form method="POST" action="{% url 'periodo_toggle' p.id %}" class="inline">
                 {% csrf_token %}
                 {% if p.estado == 'Abierto' %}
-                  <button type="submit" class="px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-xs transition">
+                  <button type="submit" class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-xs transition">
                     Cerrar Período
                   </button>
                 {% else %}
-                  <button type="submit" class="px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded border border-slate-300 transition">
+                  <button type="submit" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 rounded border border-slate-300 shadow-xs transition">
                     Reabrir Período
                   </button>
                 {% endif %}
@@ -158,28 +179,30 @@
   </div>
   {% endif %}
 
-  <!-- Operational Modules -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+  <!-- Módulos Operativos -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
-      <div class="space-y-2">
+      <div class="space-y-1.5">
         <h4 class="font-bold text-slate-900 text-sm">Boletas de Calificaciones</h4>
-        <p class="text-xs text-slate-500">Generación de boletas por sección en formato oficial para entrega a padres de familia.</p>
+        <p class="text-xs text-slate-500 leading-relaxed">Generación e impresión de boletas trimestrales por grado y sección para padres de familia.</p>
       </div>
       <div class="mt-4 pt-3 border-t border-slate-100">
-        <a href="{% url 'boletas_view' %}" class="inline-block px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white rounded text-xs font-semibold shadow-xs transition">
-          Ir a Módulo de Boletas
+        <a href="{% url 'boletas_view' %}" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-900 hover:bg-blue-950 text-white rounded-lg text-xs font-semibold transition">
+          <span>Ir a Boletas</span>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
         </a>
       </div>
     </div>
 
     <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
-      <div class="space-y-2">
-        <h4 class="font-bold text-slate-900 text-sm">Registro de Matrícula y Alumnos</h4>
-        <p class="text-xs text-slate-500">Manejo de expedientes, asignación de secciones y validación de NIE sin duplicados.</p>
+      <div class="space-y-1.5">
+        <h4 class="font-bold text-slate-900 text-sm">Registro de Estudiantes</h4>
+        <p class="text-xs text-slate-500 leading-relaxed">Padrón de matrícula, expedientes personales y asignación de grados y secciones.</p>
       </div>
       <div class="mt-4 pt-3 border-t border-slate-100">
-        <a href="{% url 'estudiantes_list' %}" class="inline-block px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded text-xs font-semibold shadow-xs transition">
-          {% if user_rol == 'Secretaria' %}Matricular y Gestionar{% else %}Consultar Padrón{% endif %}
+        <a href="{% url 'estudiantes_list' %}" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold transition">
+          <span>{% if user_rol == 'Secretaria' %}Gestionar Matrícula{% else %}Consultar Alumnos{% endif %}</span>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
         </a>
       </div>
     </div>

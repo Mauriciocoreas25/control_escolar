@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, ForeignKey
+from sqlalchemy import Column, Integer, Float, String, ForeignKey
 from app.core.database import Base
 
 class Calificacion(Base):
@@ -9,3 +9,4 @@ class Calificacion(Base):
     asignatura_id = Column(Integer, ForeignKey("asignaturas.id"), nullable=False)
     periodo_id = Column(Integer, ForeignKey("periodos_escolares.id"), nullable=False)
     nota = Column(Float, nullable=False)  # Ej: 8.5, 10.0
+    tipo_evaluacion = Column(String(150), nullable=True, default="Actividad 1: Examen Parcial (35%)")

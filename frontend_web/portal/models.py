@@ -22,6 +22,7 @@ class ConfiguracionInstitucion(models.Model):
     director_nombre = models.CharField(max_length=150, default="Lic. Roberto Mendoza")
     direccion = models.CharField(max_length=250, default="San Bartolomé Perulapía, Cuscatlán")
     telefono = models.CharField(max_length=50, default="2222-3333")
+    logo = models.ImageField(upload_to='institucion/', blank=True, null=True)
 
     def __str__(self):
         return self.nombre

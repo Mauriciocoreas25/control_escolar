@@ -1,0 +1,180 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Consolidado de Asistencia - {{ institucion.nombre }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <h2 class="text-xl font-bold text-slate-900">Consolidado de Asistencia</h2>
+
+    <div class="flex items-center space-x-2.5">
+      <button onclick="window.print()" class="px-3.5 py-2 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg shadow-xs hover:bg-slate-50 transition flex items-center space-x-1.5">
+        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+        <span>Imprimir Reporte</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Metric KPI Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Total Pases -->
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pases Registrados</span>
+        <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+        </div>
+      </div>
+      <div class="mt-2 flex items-baseline space-x-2">
+        <span class="text-2xl font-black text-slate-900">{{ total_registros }}</span>
+        <span class="text-xs text-slate-400">alumnos evaluados</span>
+      </div>
+    </div>
+
+    <!-- Tasa Asistencia -->
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">% Concurrencia</span>
+        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+          %
+        </div>
+      </div>
+      <div class="mt-2 flex items-baseline space-x-2">
+        <span class="text-2xl font-black text-emerald-700">{{ tasa_asistencia }}%</span>
+        <span class="text-xs text-slate-400">tasa efectiva</span>
+      </div>
+    </div>
+
+    <!-- Presentes -->
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Presentes en Aula</span>
+        <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+          P
+        </div>
+      </div>
+      <div class="mt-2 flex items-baseline space-x-2">
+        <span class="text-2xl font-black text-slate-900">{{ total_presentes }}</span>
+        <span class="text-xs text-emerald-600 font-semibold">asistencias</span>
+      </div>
+    </div>
+
+    <!-- Inasistencias y Justificados -->
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ausencias / Justif.</span>
+        <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-700 flex items-center justify-center font-bold">
+          A
+        </div>
+      </div>
+      <div class="mt-2 flex items-baseline space-x-3">
+        <div>
+          <span class="text-2xl font-black text-rose-700">{{ total_ausentes }}</span>
+          <span class="text-xs text-slate-400 ml-1">ausentes</span>
+        </div>
+        <div class="border-l border-slate-200 pl-3">
+          <span class="text-lg font-bold text-amber-600">{{ total_justificados }}</span>
+          <span class="text-xs text-slate-400 ml-1">justif.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters Bar -->
+  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+    <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Filtrar por Sección:</label>
+        <select name="seccion" class="w-full text-xs rounded-lg border-slate-300 p-2 bg-slate-50 border focus:ring-1 focus:ring-blue-600">
+          <option value="">-- Todas las Secciones --</option>
+          {% for sec in secciones %}
+            <option value="{{ sec }}" {% if seccion_filtro == sec %}selected{% endif %}>{{ sec }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Fecha de Registro:</label>
+        <input type="date" name="fecha" value="{{ fecha_filtro }}" class="w-full text-xs rounded-lg border-slate-300 p-2 bg-slate-50 border focus:ring-1 focus:ring-blue-600">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Estado de Asistencia:</label>
+        <select name="estado" class="w-full text-xs rounded-lg border-slate-300 p-2 bg-slate-50 border focus:ring-1 focus:ring-blue-600">
+          <option value="">-- Todos los Estados --</option>
+          <option value="Presente" {% if estado_filtro == 'Presente' %}selected{% endif %}>Presente (P)</option>
+          <option value="Ausente" {% if estado_filtro == 'Ausente' %}selected{% endif %}>Ausente (A)</option>
+          <option value="Justificado" {% if estado_filtro == 'Justificado' %}selected{% endif %}>Justificado (J)</option>
+        </select>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <button type="submit" class="flex-1 py-2 px-3 text-xs font-bold text-white bg-blue-900 hover:bg-blue-950 rounded-lg transition shadow-xs text-center">
+          Aplicar Filtros
+        </button>
+        <a href="{% url 'asistencia_consolidado' %}" class="py-2 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 border border-slate-300 rounded-lg transition text-center">
+          Limpiar
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Attendance Table -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+      <h3 class="text-sm font-bold text-slate-900">Listado Consolidado de Asistencia</h3>
+      <span class="text-xs text-slate-500 font-mono">{{ total_registros }} registros encontrados</span>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm text-slate-600">
+        <thead class="bg-slate-100/75 text-xs uppercase text-slate-500 font-semibold border-b border-slate-200">
+          <tr>
+            <th class="px-5 py-3">#</th>
+            <th class="px-5 py-3">Estudiante</th>
+            <th class="px-5 py-3">NIE</th>
+            <th class="px-5 py-3">Grado y Sección</th>
+            <th class="px-5 py-3">Fecha de Pase</th>
+            <th class="px-5 py-3 text-center">Estado</th>
+            <th class="px-5 py-3">Observaciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for r in registros %}
+          <tr class="hover:bg-slate-50 transition">
+            <td class="px-5 py-3.5 font-mono text-xs text-slate-400 font-bold">#{{ forloop.counter }}</td>
+            <td class="px-5 py-3.5 font-bold text-slate-900">{{ r.estudiante_nombre }}</td>
+            <td class="px-5 py-3.5 font-mono text-xs text-blue-700 font-semibold">{{ r.nie }}</td>
+            <td class="px-5 py-3.5 text-xs text-slate-600">{{ r.grado_seccion }}</td>
+            <td class="px-5 py-3.5 text-xs font-medium text-slate-700">{{ r.fecha }}</td>
+            <td class="px-5 py-3.5 text-center">
+              {% if r.estado|lower == 'presente' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  Presente
+                </span>
+              {% elif r.estado|lower == 'ausente' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200">
+                  Ausente
+                </span>
+              {% else %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                  {{ r.estado }}
+                </span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3.5 text-xs text-slate-400 italic">{{ r.observacion }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="px-5 py-10 text-center text-slate-400 text-xs">
+              No se encontraron registros de asistencia con los filtros seleccionados.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

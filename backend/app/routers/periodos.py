@@ -5,11 +5,16 @@ from app.core.database import get_db
 from app.models.periodo import PeriodoEscolar
 from app.schemas.schemas import PeriodoCreate, PeriodoResponse
 
+from typing import List, Optional
+
 router = APIRouter(prefix="/periodos", tags=["Periodos Escolares"])
 
 @router.get("/", response_model=List[PeriodoResponse])
-def listar_periodos(db: Session = Depends(get_db)):
-    return db.query(PeriodoEscolar).all()
+def listar_periodos(anio_id: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(PeriodoEscolar)
+    if anio_id is not None:
+        query = query.filter(PeriodoEscolar.anio_lectivo_id == anio_id)
+    return query.order_by(PeriodoEscolar.anio_lectivo_id.asc(), PeriodoEscolar.id.asc()).all()
 
 @router.post("/", response_model=PeriodoResponse)
 def crear_periodo(periodo_data: PeriodoCreate, db: Session = Depends(get_db)):

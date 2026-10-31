@@ -1,8 +1,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from .services import api_client
+from .services import api_client, reports
 from .models import ConfiguracionInstitucion, PerfilUsuario
 
 def get_role(user):
@@ -14,7 +15,6 @@ def get_role(user):
         return 'Director'
     return 'Secretaria'
 
-# ==================== AUTENTICACIÓN ====================
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -23,22 +23,47 @@ def login_view(request):
         u = request.POST.get('username', '').strip()
         p = request.POST.get('password', '').strip()
 
-        # Soporte para ingresar nombre de usuario o correo institucional
-        username_to_auth = u
-        if u.lower() in ['director@santabartolome.edu.sv', 'director']:
-            username_to_auth = 'director'
-        elif u.lower() in ['secretaria@santabartolome.edu.sv', 'secretaria']:
-            username_to_auth = 'secretaria'
+        # 1. Intentar autenticación directa por username en Django
+        user = authenticate(request, username=u, password=p)
 
-        user = authenticate(request, username=username_to_auth, password=p)
+        # 2. Si no autentica por username, buscar por correo institucional en Django
+        if user is None:
+            from django.contrib.auth.models import User
+            dj_user = User.objects.filter(email__iexact=u).first() or User.objects.filter(username__iexact=u).first()
+            if dj_user:
+                user = authenticate(request, username=dj_user.username, password=p)
+
+        # 3. Si aún no está en Django, validar contra la API institucional (FastAPI / MySQL)
+        if user is None:
+            ok, auth_data = api_client.api_login(u, p)
+            if ok and isinstance(auth_data, dict):
+                usr_data = auth_data.get("usuario", {})
+                correo = usr_data.get("correo", u).lower()
+                nombre = usr_data.get("nombre", u)
+                rol = usr_data.get("rol", "Secretaria")
+
+                from django.contrib.auth.models import User
+                dj_user, created = User.objects.get_or_create(username=correo, defaults={"email": correo, "first_name": nombre})
+                dj_user.set_password(p)
+                dj_user.save()
+
+                PerfilUsuario.objects.update_or_create(
+                    user=dj_user,
+                    defaults={"rol": rol}
+                )
+                user = authenticate(request, username=correo, password=p)
 
         if user is not None:
-            login(request, user)
-            rol = get_role(user)
-            messages.success(request, f"Sesión iniciada correctamente. Perfil: {rol}.")
-            return redirect('dashboard')
+            if not user.is_active:
+                messages.error(request, "Acceso denegado: Esta cuenta se encuentra suspendida.")
+            else:
+                login(request, user)
+                rol = get_role(user)
+                messages.success(request, f"Sesión iniciada correctamente. Perfil: {rol}.")
+                return redirect('dashboard')
         else:
             messages.error(request, "Credenciales incorrectas. Verifique su usuario y contraseña.")
+
 
     institucion = ConfiguracionInstitucion.get_activa()
     return render(request, 'portal/login.html', {'institucion': institucion})
@@ -106,6 +131,36 @@ def estudiantes_list(request):
         "rol_actual": rol,
     }
     return render(request, "portal/estudiantes.html", context)
+
+@login_required
+def estudiantes_export_pdf(request):
+    query = request.GET.get("q", "").strip().lower()
+    estudiantes = api_client.get_estudiantes() or []
+    if query:
+        estudiantes = [
+            e for e in estudiantes
+            if query in str(e.get("nie", "")).lower() or query in str(e.get("nombre_completo", "")).lower()
+        ]
+    institucion = ConfiguracionInstitucion.get_activa()
+    pdf_bytes = reports.generar_pdf_estudiantes(estudiantes, institucion, query=query)
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="Padron_Estudiantes.pdf"'
+    return response
+
+@login_required
+def estudiantes_export_excel(request):
+    query = request.GET.get("q", "").strip().lower()
+    estudiantes = api_client.get_estudiantes() or []
+    if query:
+        estudiantes = [
+            e for e in estudiantes
+            if query in str(e.get("nie", "")).lower() or query in str(e.get("nombre_completo", "")).lower()
+        ]
+    institucion = ConfiguracionInstitucion.get_activa()
+    excel_bytes = reports.generar_excel_estudiantes(estudiantes, institucion)
+    response = HttpResponse(excel_bytes, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="Padron_Estudiantes.xlsx"'
+    return response
 
 @login_required
 def estudiante_create(request):
@@ -202,9 +257,10 @@ def docente_create(request):
 
     if request.method == "POST":
         nombre = request.POST.get("nombre", "").strip()
-        correo = request.POST.get("correo", "").strip()
+        correo = request.POST.get("correo", "").strip().lower()
         telefono = request.POST.get("telefono", "").strip()
         especialidad = request.POST.get("especialidad", "").strip()
+        password = request.POST.get("password", "").strip() or "docente123"
 
         if not nombre or not correo:
             messages.error(request, "Nombre y Correo electrónico son obligatorios.")
@@ -215,11 +271,17 @@ def docente_create(request):
             "correo": correo,
             "telefono": telefono,
             "especialidad": especialidad,
-            "password": "docente123"
+            "password": password
         }
         success, res = api_client.create_profesor(data)
         if success:
-            messages.success(request, f"Docente {nombre} registrado exitosamente.")
+            # Sincronizar en Django User para acceso al portal web
+            from django.contrib.auth.models import User
+            dj_user, created = User.objects.get_or_create(username=correo, defaults={"email": correo, "first_name": nombre})
+            dj_user.set_password(password)
+            dj_user.save()
+            PerfilUsuario.objects.update_or_create(user=dj_user, defaults={"rol": "Profesor"})
+            messages.success(request, f"Docente {nombre} registrado exitosamente con clave asignada.")
         else:
             messages.error(request, "Error: El correo electrónico ya pertenece a otro usuario.")
 
@@ -233,8 +295,32 @@ def docente_delete(request, id):
         return redirect('dashboard')
 
     if request.method == "POST":
+        # Identificar el nombre del docente antes de eliminarlo
+        profesores = api_client.get_profesores()
+        prof_obj = next((p for p in profesores if p.get('id') == id), None)
+        nombre_docente = prof_obj.get('nombre') if prof_obj else None
+
         if api_client.delete_profesor(id):
-            messages.success(request, "Docente eliminado correctamente.")
+            # Si tenía asignaturas asignadas, liberarlas a 'Sin asignar' para que el Director las reasigne
+            if nombre_docente:
+                asignaturas = api_client.get_asignaturas()
+                liberadas = 0
+                for a in asignaturas:
+                    if a.get('profesor_nombre') == nombre_docente:
+                        api_client.update_asignatura(a.get('id'), {
+                            "codigo": a.get('codigo'),
+                            "nombre": a.get('nombre'),
+                            "grado_seccion": a.get('grado_seccion'),
+                            "profesor_nombre": "Sin asignar",
+                            "descripcion": a.get('descripcion')
+                        })
+                        liberadas += 1
+                if liberadas > 0:
+                    messages.warning(request, f"Docente eliminado. {liberadas} asignatura(s) quedaron 'Sin asignar' para que pueda asignarlas a otro docente en Carga Académica.")
+                else:
+                    messages.success(request, "Docente eliminado correctamente.")
+            else:
+                messages.success(request, "Docente eliminado correctamente.")
         else:
             messages.error(request, "No se pudo eliminar el docente.")
     return redirect("docentes_list")
@@ -242,16 +328,207 @@ def docente_delete(request, id):
 # ==================== ASIGNATURAS / CARGA ACADÉMICA ====================
 @login_required
 def carga_academica(request):
-    asignaturas = api_client.get_asignaturas()
-    profesores = api_client.get_profesores()
+    asignaturas = api_client.get_asignaturas() or []
+    profesores = api_client.get_profesores() or []
+    secciones = api_client.get_secciones() or []
     rol = get_role(request.user)
+
+    # Identificar Ciclo Educativo
+    def obtener_ciclo(gs):
+        gs_clean = (gs or "").lower()
+        if any(x in gs_clean for x in ["7", "8", "9"]):
+            return "Tercer Ciclo (7º a 9º Grado)"
+        elif any(x in gs_clean for x in ["4", "5", "6"]):
+            return "Segundo Ciclo (4º a 6º Grado)"
+        elif any(x in gs_clean for x in ["1", "2", "3"]):
+            return "Primer Ciclo (1º a 3º Grado)"
+        return "Ciclo General"
+
+    # Consolidar asignaturas por Materia y Ciclo para visualización ejecutiva
+    cargas_dict = {}
+    for a in asignaturas:
+        materia = a.get("nombre", "").strip()
+        prof_nom = a.get("profesor_nombre", "Sin asignar").strip()
+        ciclo = obtener_ciclo(a.get("grado_seccion", ""))
+        sec = a.get("grado_seccion", "General")
+
+        key = (ciclo, materia)
+        if key not in cargas_dict:
+            cargas_dict[key] = {
+                "ciclo": ciclo,
+                "materia": materia,
+                "profesor_nombre": prof_nom,
+                "secciones": [],
+                "ids": [],
+                "codigos": [],
+                "profesores_set": set(),
+            }
+        if sec not in cargas_dict[key]["secciones"]:
+            cargas_dict[key]["secciones"].append(sec)
+        cargas_dict[key]["ids"].append(str(a.get("id")))
+        cargas_dict[key]["codigos"].append(a.get("codigo"))
+        if prof_nom and prof_nom != "Sin asignar":
+            cargas_dict[key]["profesores_set"].add(prof_nom)
+
+    for c in cargas_dict.values():
+        if c["profesores_set"]:
+            c["profesor_nombre"] = ", ".join(sorted(list(c["profesores_set"])))
+        else:
+            c["profesor_nombre"] = "Sin asignar"
+
+    ciclos_order = {
+        "Tercer Ciclo (7º a 9º Grado)": 1,
+        "Segundo Ciclo (4º a 6º Grado)": 2,
+        "Primer Ciclo (1º a 3º Grado)": 3,
+        "Ciclo General": 4
+    }
+
+    cargas_consolidadas = sorted(
+        cargas_dict.values(),
+        key=lambda x: (ciclos_order.get(x["ciclo"], 99), x["materia"])
+    )
+
+    for c in cargas_consolidadas:
+        c["total_secciones"] = len(c["secciones"])
+        abrevs = []
+        for s in c["secciones"]:
+            parts = s.split(" - ")
+            if len(parts) == 2:
+                grado_num = parts[0].replace(" Grado", "")
+                sec_letra = parts[1].replace("Sección ", "")
+                abrevs.append(f"{grado_num} {sec_letra}")
+            else:
+                abrevs.append(s)
+        c["secciones_resumen"] = ", ".join(abrevs)
+        c["ids_str"] = ",".join(c["ids"])
+
+    # Agrupar por ciclo para la UI
+    cargas_por_ciclo = {}
+    for c in cargas_consolidadas:
+        ciclo = c["ciclo"]
+        if ciclo not in cargas_por_ciclo:
+            cargas_por_ciclo[ciclo] = []
+        cargas_por_ciclo[ciclo].append(c)
+
     context = {
+        "cargas_consolidadas": cargas_consolidadas,
+        "cargas_por_ciclo": cargas_por_ciclo,
         "asignaturas": asignaturas,
         "profesores": profesores,
+        "secciones": secciones,
+        "total_cargas": len(cargas_consolidadas),
         "total": len(asignaturas),
         "rol_actual": rol,
     }
     return render(request, "portal/carga_academica.html", context)
+
+@login_required
+def carga_academica_reasignar_materia(request):
+    rol = get_role(request.user)
+    if rol != 'Director':
+        messages.error(request, "Acceso Denegado: Solo la Dirección General puede reasignar cargas académicas.")
+        return redirect("carga_academica")
+
+    if request.method == "POST":
+        materia = request.POST.get("materia", "").strip()
+        ciclo = request.POST.get("ciclo", "").strip()
+        nuevo_profesor_nombre = request.POST.get("nuevo_profesor_nombre", "").strip()
+        asignatura_ids = request.POST.get("asignatura_ids", "").strip()
+
+        if not nuevo_profesor_nombre or not asignatura_ids:
+            messages.error(request, "Debe seleccionar un docente para reasignar la materia.")
+            return redirect("carga_academica")
+
+        ids_list = [int(x.strip()) for x in asignatura_ids.split(",") if x.strip().isdigit()]
+
+        # 1. Actualizar directamente en MySQL con commit inmediato en asignaturas
+        try:
+            import MySQLdb
+            conn = MySQLdb.connect(
+                host='127.0.0.1', user='root', passwd='', db='control_escolar_db', charset='utf8mb4'
+            )
+            cur = conn.cursor()
+
+            # Buscar profesor_id por nombre
+            cur.execute("""
+                SELECT p.id 
+                FROM profesores p 
+                JOIN usuarios u ON p.usuario_id = u.id 
+                WHERE u.nombre LIKE %s OR u.nombre = %s
+                LIMIT 1;
+            """, (f"%{nuevo_profesor_nombre}%", nuevo_profesor_nombre))
+            row = cur.fetchone()
+            nuevo_prof_id = row[0] if row else None
+
+            # Actualizar y confirmar asignaturas
+            format_strings = ','.join(['%s'] * len(ids_list))
+            cur.execute(f"""
+                UPDATE asignaturas 
+                SET profesor_nombre = %s 
+                WHERE id IN ({format_strings});
+            """, [nuevo_profesor_nombre] + ids_list)
+            conn.commit()
+
+            # Actualizar cargas_academicas
+            if nuevo_prof_id:
+                try:
+                    cur.execute("""
+                        SELECT id FROM materias WHERE nombre_materia = %s LIMIT 1;
+                    """, (materia,))
+                    mat_row = cur.fetchone()
+                    if mat_row:
+                        mat_id = mat_row[0]
+                        cur.execute(f"""
+                            SELECT DISTINCT gs.id
+                            FROM asignaturas a
+                            JOIN grados_secciones gs ON gs.grado = TRIM(SUBSTRING_INDEX(a.grado_seccion, '-', 1))
+                                                     AND gs.seccion = TRIM(SUBSTRING_INDEX(a.grado_seccion, '-', -1))
+                            WHERE a.id IN ({format_strings});
+                        """, ids_list)
+                        sec_ids = [r[0] for r in cur.fetchall()]
+                        if sec_ids:
+                            format_sec = ','.join(['%s'] * len(sec_ids))
+                            cur.execute(f"""
+                                UPDATE cargas_academicas 
+                                SET profesor_id = %s 
+                                WHERE materia_id = %s AND grado_seccion_id IN ({format_sec});
+                            """, [nuevo_prof_id, mat_id] + sec_ids)
+                            conn.commit()
+                except Exception:
+                    pass
+
+                # Actualizar horarios de forma segura slot por slot
+                try:
+                    cur.execute(f"""
+                        SELECT id, dia_semana, hora_inicio, hora_fin, anio_lectivo_id
+                        FROM horarios
+                        WHERE materia_id IN ({format_strings});
+                    """, ids_list)
+                    horarios_slots = cur.fetchall()
+                    for h_id, dia, h_ini, h_fin, anio_id in horarios_slots:
+                        cur.execute("""
+                            SELECT id FROM horarios 
+                            WHERE profesor_id = %s AND dia_semana = %s AND hora_inicio = %s AND hora_fin = %s AND anio_lectivo_id = %s
+                            LIMIT 1;
+                        """, (nuevo_prof_id, dia, h_ini, h_fin, anio_id))
+                        ocupado = cur.fetchone()
+                        if not ocupado:
+                            cur.execute("UPDATE horarios SET profesor_id = %s WHERE id = %s;", (nuevo_prof_id, h_id))
+                    conn.commit()
+                except Exception:
+                    pass
+
+            conn.close()
+        except Exception:
+            pass
+
+        # 2. Sincronizar vía API
+        for asig_id in ids_list:
+            api_client.update_asignatura(asig_id, {"profesor_nombre": nuevo_profesor_nombre})
+
+        messages.success(request, f"Materia '{materia}' ({ciclo}) reasignada con éxito a {nuevo_profesor_nombre}.")
+
+    return redirect("carga_academica")
 
 @login_required
 def asignatura_create(request):
@@ -275,9 +552,69 @@ def asignatura_create(request):
         }
         success, res = api_client.create_asignatura(data)
         if success:
-            messages.success(request, f"¡Asignatura '{nombre}' ({codigo}) registrada con éxito!")
+            messages.success(request, f"Asignatura '{nombre}' ({codigo}) registrada con éxito.")
         else:
             messages.error(request, "Error: El código de asignatura ya está en uso.")
+
+    return redirect("carga_academica")
+
+@login_required
+def asignatura_update(request, id):
+    rol = get_role(request.user)
+    if rol != 'Director':
+        messages.error(request, "Acceso Denegado: Solo la Dirección General puede reasignar o editar asignaturas.")
+        return redirect("carga_academica")
+
+    if request.method == "POST":
+        codigo = request.POST.get("codigo", "").strip()
+        nombre = request.POST.get("nombre", "").strip()
+        grado_seccion = request.POST.get("grado_seccion", "").strip() or "General"
+        profesor_nombre = request.POST.get("profesor_nombre", "").strip() or "Sin asignar"
+        descripcion = request.POST.get("descripcion", "").strip()
+
+        if not codigo or not nombre:
+            messages.error(request, "El código y el nombre de la asignatura son obligatorios.")
+            return redirect("carga_academica")
+
+        data = {
+            "codigo": codigo,
+            "nombre": nombre,
+            "grado_seccion": grado_seccion,
+            "profesor_nombre": profesor_nombre,
+            "descripcion": descripcion
+        }
+
+        # Actualizar en MySQL directamente
+        try:
+            import MySQLdb
+            conn = MySQLdb.connect(host='127.0.0.1', user='root', passwd='', db='control_escolar_db', charset='utf8mb4')
+            cur = conn.cursor()
+            cur.execute("""
+                UPDATE asignaturas 
+                SET codigo = %s, nombre = %s, grado_seccion = %s, profesor_nombre = %s, descripcion = %s
+                WHERE id = %s;
+            """, (codigo, nombre, grado_seccion, profesor_nombre, descripcion, id))
+            conn.commit()
+
+            cur.execute("""
+                SELECT p.id FROM profesores p 
+                JOIN usuarios u ON p.usuario_id = u.id 
+                WHERE u.nombre LIKE %s OR u.nombre = %s LIMIT 1;
+            """, (f"%{profesor_nombre}%", profesor_nombre))
+            p_row = cur.fetchone()
+            if p_row:
+                try:
+                    cur.execute("UPDATE horarios SET profesor_id = %s WHERE materia_id = %s;", (p_row[0], id))
+                    conn.commit()
+                except Exception:
+                    pass
+            conn.close()
+        except Exception:
+            pass
+
+        # Actualizar vía API
+        api_client.update_asignatura(id, data)
+        messages.success(request, f"Asignatura '{nombre}' ({codigo}) actualizada. Docente asignado: {profesor_nombre}.")
 
     return redirect("carga_academica")
 
@@ -337,15 +674,38 @@ def anio_create(request):
 def anio_delete(request, id):
     rol = get_role(request.user)
     if rol != 'Director':
-        messages.error(request, "Acceso denegado.")
+        messages.error(request, "Acceso denegado: Solo el Director General puede eliminar ciclos escolares.")
         return redirect("periodos_list")
 
     if request.method == "POST":
-        if api_client.delete_anio(id):
-            messages.success(request, "Ciclo escolar eliminado.")
+        success, msg = api_client.delete_anio(id)
+        if success:
+            messages.success(request, msg)
         else:
-            messages.error(request, "No se pudo eliminar el ciclo.")
+            messages.error(request, f"No se pudo eliminar el ciclo: {msg}")
     return redirect("periodos_list")
+
+@login_required
+def anio_toggle_estado(request, id):
+    rol = get_role(request.user)
+    if rol != 'Director':
+        messages.error(request, "Acceso denegado: Solo la Dirección General puede cambiar el estado de los ciclos escolares.")
+        return redirect("periodos_list")
+
+    if request.method == "POST":
+        anios = api_client.get_anios()
+        target = next((a for a in anios if a.get("id") == id), None)
+        if target:
+            actual = target.get("estado", "Activo")
+            nuevo = "Cerrado" if actual in ["Activo", "Planificado"] else "Activo"
+            if api_client.toggle_anio_estado(id, nuevo):
+                estado_texto = "Finalizado / Cerrado" if nuevo == "Cerrado" else "Activo / En Curso"
+                messages.success(request, f"Ciclo {target.get('anio')} marcado como '{estado_texto}'.")
+
+            else:
+                messages.error(request, "Error al actualizar el estado del ciclo escolar.")
+    return redirect("periodos_list")
+
 
 @login_required
 def periodo_create(request):
@@ -417,12 +777,384 @@ def periodo_toggle(request, id):
                 messages.error(request, "Error al actualizar estado en la API.")
     return redirect('periodos_list')
 
-# ==================== BOLETAS Y AJUSTES ====================
+# ==================== BOLETAS DE CALIFICACIONES ====================
+def get_boletas_data(seccion_filtro=None, periodo_id=None, estudiante_id=None):
+    estudiantes_raw = api_client.get_estudiantes() or []
+    asignaturas_raw = api_client.get_asignaturas() or []
+    periodos_raw = api_client.get_periodos() or []
+    calificaciones_raw = api_client.get_calificaciones() or []
+
+    periodo_obj = None
+    if periodo_id:
+        periodo_obj = next((p for p in periodos_raw if str(p.get("id")) == str(periodo_id)), None)
+    if not periodo_obj and periodos_raw:
+        periodo_obj = next((p for p in periodos_raw if p.get("estado") == "Abierto"), periodos_raw[0])
+
+    pid = periodo_obj.get("id") if periodo_obj else None
+    periodo_nombre = periodo_obj.get("nombre", "Trimestre 1") if periodo_obj else "Trimestre 1"
+
+    target_estudiantes = []
+    for e in estudiantes_raw:
+        if seccion_filtro and e.get("grado_seccion") != seccion_filtro:
+            continue
+        if estudiante_id and str(e.get("id")) != str(estudiante_id):
+            continue
+        target_estudiantes.append(e)
+
+    califs_by_est_asig = {}
+    for c in calificaciones_raw:
+        if pid and c.get("periodo_id") != pid:
+            continue
+        e_id = c.get("estudiante_id")
+        a_id = c.get("asignatura_id")
+        key = (e_id, a_id)
+        if key not in califs_by_est_asig:
+            califs_by_est_asig[key] = []
+        califs_by_est_asig[key].append(c)
+
+    boletas = []
+    for e in target_estudiantes:
+        e_id = e.get("id")
+        e_seccion = e.get("grado_seccion")
+
+        sec_asigs = [a for a in asignaturas_raw if a.get("grado_seccion") == e_seccion]
+        if not sec_asigs:
+            sec_asigs = asignaturas_raw
+
+        materias_list = []
+        sum_promedios = 0.0
+
+        for a in sec_asigs:
+            a_id = a.get("id")
+            c_list = califs_by_est_asig.get((e_id, a_id), [])
+
+            act1 = None
+            act2 = None
+            act3 = None
+            direct_nota = None
+
+            for c in c_list:
+                tipo = (c.get("tipo_evaluacion") or "").lower()
+                n = float(c.get("nota", 0.0))
+                if "actividad 1" in tipo or "examen" in tipo or "parcial" in tipo:
+                    act1 = n
+                elif "actividad 2" in tipo or "tarea" in tipo or "práctica" in tipo or "practica" in tipo:
+                    act2 = n
+                elif "actividad 3" in tipo or "proyecto" in tipo or "cotidiano" in tipo:
+                    act3 = n
+                else:
+                    direct_nota = n
+
+            acts_present = [x for x in [act1, act2, act3] if x is not None]
+            if len(acts_present) == 3:
+                m_prom = round((act1 * 0.35) + (act2 * 0.35) + (act3 * 0.30), 1)
+            elif len(acts_present) > 0:
+                m_prom = round(sum(acts_present) / len(acts_present), 1)
+            elif direct_nota is not None:
+                m_prom = round(direct_nota, 1)
+            else:
+                m_prom = 0.0
+
+            materias_list.append({
+                "id": a_id,
+                "nombre": a.get("nombre", f"Materia #{a_id}"),
+                "codigo": a.get("codigo", ""),
+                "profesor_nombre": a.get("profesor_nombre", "Docente asignado"),
+                "act1": act1,
+                "act2": act2,
+                "act3": act3,
+                "promedio": m_prom,
+                "aprobado": m_prom >= 6.0,
+            })
+            sum_promedios += m_prom
+
+        prom_general = round(sum_promedios / len(materias_list), 2) if materias_list else 0.0
+
+        boletas.append({
+            "estudiante": e,
+            "materias": materias_list,
+            "promedio_general": prom_general,
+            "aprobado": prom_general >= 6.0,
+            "periodo_nombre": periodo_nombre,
+        })
+
+    secciones = sorted(list(set([e.get("grado_seccion") for e in estudiantes_raw if e.get("grado_seccion")])))
+    return boletas, periodo_nombre, periodo_obj, periodos_raw, secciones
+
 @login_required
 def boletas_view(request):
-    estudiantes = api_client.get_estudiantes()
-    periodos = api_client.get_periodos()
-    return render(request, "portal/boletas.html", {"estudiantes": estudiantes, "periodos": periodos})
+    seccion = request.GET.get("seccion", "").strip()
+    periodo_id = request.GET.get("periodo_id", "").strip()
+    estudiante_id = request.GET.get("estudiante_id", "").strip()
+
+    boletas, periodo_nombre, periodo_obj, periodos, secciones = get_boletas_data(
+        seccion_filtro=seccion,
+        periodo_id=periodo_id,
+        estudiante_id=estudiante_id
+    )
+
+    institucion = ConfiguracionInstitucion.get_activa()
+    rol = get_role(request.user)
+
+    context = {
+        "boletas": boletas,
+        "periodo_nombre": periodo_nombre,
+        "periodo_obj": periodo_obj,
+        "periodos": periodos,
+        "secciones": secciones,
+        "seccion_filtro": seccion,
+        "periodo_filtro": str(periodo_obj.get("id")) if periodo_obj else "",
+        "estudiante_filtro": estudiante_id,
+        "total_boletas": len(boletas),
+        "institucion": institucion,
+        "rol_actual": rol,
+    }
+    return render(request, "portal/boletas.html", context)
+
+@login_required
+def boletas_export_pdf(request):
+    seccion = request.GET.get("seccion", "").strip()
+    periodo_id = request.GET.get("periodo_id", "").strip()
+    estudiante_id = request.GET.get("estudiante_id", "").strip()
+
+    boletas, periodo_nombre, _, _, _ = get_boletas_data(
+        seccion_filtro=seccion,
+        periodo_id=periodo_id,
+        estudiante_id=estudiante_id
+    )
+    institucion = ConfiguracionInstitucion.get_activa()
+    pdf_bytes = reports.generar_pdf_boletas(boletas, institucion, periodo_nombre=periodo_nombre)
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    filename = f"Boletas_{periodo_nombre.replace(' ', '_')}.pdf"
+    if estudiante_id and boletas:
+        est_nombre = boletas[0]["estudiante"].get("nombre_completo", "Estudiante").replace(" ", "_")
+        filename = f"Boleta_{est_nombre}_{periodo_nombre.replace(' ', '_')}.pdf"
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
+
+@login_required
+def boletas_export_excel(request):
+    seccion = request.GET.get("seccion", "").strip()
+    periodo_id = request.GET.get("periodo_id", "").strip()
+    estudiante_id = request.GET.get("estudiante_id", "").strip()
+
+    boletas, periodo_nombre, _, _, _ = get_boletas_data(
+        seccion_filtro=seccion,
+        periodo_id=periodo_id,
+        estudiante_id=estudiante_id
+    )
+    institucion = ConfiguracionInstitucion.get_activa()
+    excel_bytes = reports.generar_excel_boletas(boletas, institucion, periodo_nombre=periodo_nombre)
+    response = HttpResponse(excel_bytes, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f"Resumen_Boletas_{periodo_nombre.replace(' ', '_')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+# ==================== CONSOLIDADOS INSTITUCIONALES ====================
+@login_required
+def asistencia_consolidado_view(request):
+    rol = get_role(request.user)
+    estudiantes_raw = api_client.get_estudiantes() or []
+    estudiantes_map = {e.get("id"): e for e in estudiantes_raw}
+    
+    secciones = sorted(list(set([e.get("grado_seccion") for e in estudiantes_raw if e.get("grado_seccion")])))
+    
+    seccion_filtro = request.GET.get("seccion", "").strip()
+    fecha_filtro = request.GET.get("fecha", "").strip()
+    estado_filtro = request.GET.get("estado", "").strip()
+    
+    asistencias_raw = api_client.get_asistencias() or []
+    
+    registros = []
+    for a in asistencias_raw:
+        est_id = a.get("estudiante_id")
+        est = estudiantes_map.get(est_id, {})
+        reg = {
+            "id": a.get("id"),
+            "estudiante_id": est_id,
+            "estudiante_nombre": est.get("nombre_completo", f"Estudiante #{est_id}"),
+            "nie": est.get("nie", "---"),
+            "grado_seccion": est.get("grado_seccion", "No asignado"),
+            "fecha": a.get("fecha"),
+            "estado": a.get("estado", "Presente"),
+            "observacion": a.get("observacion") or "Sin observaciones",
+        }
+        
+        if seccion_filtro and reg["grado_seccion"] != seccion_filtro:
+            continue
+        if fecha_filtro and str(reg["fecha"]) != fecha_filtro:
+            continue
+        if estado_filtro and reg["estado"].lower() != estado_filtro.lower():
+            continue
+            
+        registros.append(reg)
+        
+    registros.sort(key=lambda r: str(r.get("fecha", "")), reverse=True)
+    
+    total_registros = len(registros)
+    total_presentes = sum(1 for r in registros if r["estado"].lower() == "presente")
+    total_ausentes = sum(1 for r in registros if r["estado"].lower() == "ausente")
+    total_justificados = sum(1 for r in registros if r["estado"].lower() in ["justificado", "tarde"])
+    
+    tasa_asistencia = round((total_presentes / total_registros * 100), 1) if total_registros > 0 else 0.0
+
+    context = {
+        "registros": registros,
+        "secciones": secciones,
+        "seccion_filtro": seccion_filtro,
+        "fecha_filtro": fecha_filtro,
+        "estado_filtro": estado_filtro,
+        "total_registros": total_registros,
+        "total_presentes": total_presentes,
+        "total_ausentes": total_ausentes,
+        "total_justificados": total_justificados,
+        "tasa_asistencia": tasa_asistencia,
+        "rol_actual": rol,
+    }
+    return render(request, "portal/asistencia_consolidado.html", context)
+
+
+def get_calificaciones_data(request):
+    estudiantes_raw = api_client.get_estudiantes() or []
+    estudiantes_map = {e.get("id"): e for e in estudiantes_raw}
+    asignaturas_raw = api_client.get_asignaturas() or []
+    asignaturas_map = {a.get("id"): a for a in asignaturas_raw}
+    periodos_raw = api_client.get_periodos() or []
+    periodos_map = {p.get("id"): p for p in periodos_raw}
+    secciones_raw = api_client.get_secciones() or []
+    
+    secciones_set = set([f"{s.get('grado')} - {s.get('seccion')}" for s in secciones_raw if s.get('grado') and s.get('seccion')])
+    for e in estudiantes_raw:
+        if e.get("grado_seccion"):
+            secciones_set.add(e.get("grado_seccion"))
+    secciones = sorted(list(secciones_set))
+    
+    seccion_filtro = request.GET.get("seccion", "").strip()
+    asignatura_filtro = request.GET.get("asignatura", "").strip()
+    periodo_filtro = request.GET.get("periodo", "").strip()
+    
+    # Filtrar catálogo canónico de materias (ej: Matemáticas, Ciencias Naturales...)
+    if seccion_filtro:
+        norm_sec = seccion_filtro.replace("º", "°").lower().strip()
+        materias_disponibles = sorted(list(set(
+            a.get("nombre") for a in asignaturas_raw
+            if a.get("nombre") and (
+                not a.get("grado_seccion")
+                or a.get("grado_seccion") == "General"
+                or norm_sec in a.get("grado_seccion", "").replace("º", "°").lower()
+                or a.get("grado_seccion", "").replace("º", "°").lower() in norm_sec
+            )
+        )))
+    else:
+        materias_disponibles = sorted(list(set(a.get("nombre") for a in asignaturas_raw if a.get("nombre"))))
+
+    # Si la materia seleccionada no está disponible para la sección elegida, limpiar filtro
+    if asignatura_filtro and asignatura_filtro not in materias_disponibles and not any(str(a.get("id")) == str(asignatura_filtro) for a in asignaturas_raw):
+        asignatura_filtro = ""
+
+    asignaturas_disponibles = [a for a in asignaturas_raw if not asignatura_filtro or a.get("nombre") == asignatura_filtro or str(a.get("id")) == asignatura_filtro]
+
+    calificaciones_raw = api_client.get_calificaciones() or []
+    
+    registros = []
+    for c in calificaciones_raw:
+        est_id = c.get("estudiante_id")
+        asig_id = c.get("asignatura_id")
+        per_id = c.get("periodo_id")
+        
+        est = estudiantes_map.get(est_id, {})
+        asig = asignaturas_map.get(asig_id, {})
+        per = periodos_map.get(per_id, {})
+        
+        nota = float(c.get("nota", 0.0))
+        reg = {
+            "id": c.get("id"),
+            "estudiante_id": est_id,
+            "estudiante_nombre": est.get("nombre_completo", f"Estudiante #{est_id}"),
+            "nie": est.get("nie", "---"),
+            "grado_seccion": est.get("grado_seccion", "No asignado"),
+            "asignatura_id": asig_id,
+            "asignatura_nombre": asig.get("nombre", f"Materia #{asig_id}"),
+            "asignatura_codigo": asig.get("codigo", ""),
+            "profesor_nombre": asig.get("profesor_nombre", "Docente asignado"),
+            "periodo_id": per_id,
+            "periodo_nombre": per.get("nombre", f"Período #{per_id}"),
+            "tipo_evaluacion": c.get("tipo_evaluacion", "Evaluación General"),
+            "nota": nota,
+            "aprobado": nota >= 6.0,
+        }
+        
+        if seccion_filtro and reg["grado_seccion"] != seccion_filtro:
+            continue
+        if asignatura_filtro:
+            # Filtrar por nombre canónico ("Matemáticas") o por id específico
+            if reg["asignatura_nombre"].strip().lower() != asignatura_filtro.strip().lower() and str(reg["asignatura_id"]) != asignatura_filtro:
+                continue
+        if periodo_filtro and str(reg["periodo_id"]) != periodo_filtro:
+            continue
+            
+        registros.append(reg)
+    
+    return registros, secciones, materias_disponibles, periodos_raw, seccion_filtro, asignatura_filtro, periodo_filtro, asignaturas_raw
+
+@login_required
+def calificaciones_consolidado_view(request):
+    rol = get_role(request.user)
+    registros, secciones, materias_disponibles, periodos_raw, seccion_filtro, asignatura_filtro, periodo_filtro, todas_asignaturas = get_calificaciones_data(request)
+    
+    total_evaluados = len(registros)
+    suma_notas = sum(r["nota"] for r in registros)
+    promedio_general = round((suma_notas / total_evaluados), 2) if total_evaluados > 0 else 0.0
+    total_aprobados = sum(1 for r in registros if r["aprobado"])
+    total_reprobados = total_evaluados - total_aprobados
+    tasa_aprobacion = round((total_aprobados / total_evaluados * 100), 1) if total_evaluados > 0 else 0.0
+
+    context = {
+        "registros": registros,
+        "secciones": secciones,
+        "materias": materias_disponibles,
+        "asignaturas": materias_disponibles,
+        "todas_asignaturas": todas_asignaturas,
+        "periodos": periodos_raw,
+        "seccion_filtro": seccion_filtro,
+        "asignatura_filtro": asignatura_filtro,
+        "periodo_filtro": periodo_filtro,
+        "total_evaluados": total_evaluados,
+        "promedio_general": promedio_general,
+        "total_aprobados": total_aprobados,
+        "total_reprobados": total_reprobados,
+        "tasa_aprobacion": tasa_aprobacion,
+        "rol_actual": rol,
+    }
+    return render(request, "portal/calificaciones_consolidado.html", context)
+
+@login_required
+def calificaciones_export_pdf(request):
+    registros, _, asignaturas, periodos, seccion_filtro, asignatura_filtro, periodo_filtro, _ = get_calificaciones_data(request)
+    institucion = ConfiguracionInstitucion.get_activa()
+
+    asig_nombre = next((a.get("nombre") for a in asignaturas if str(a.get("id")) == asignatura_filtro), "")
+    per_nombre = next((p.get("nombre") for p in periodos if str(p.get("id")) == periodo_filtro), "")
+
+    filtros = {
+        "seccion": seccion_filtro,
+        "asignatura": asig_nombre,
+        "periodo": per_nombre,
+    }
+    pdf_bytes = reports.generar_pdf_calificaciones(registros, institucion, filtros)
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="Consolidado_Calificaciones.pdf"'
+    return response
+
+@login_required
+def calificaciones_export_excel(request):
+    registros, _, _, _, _, _, _, _ = get_calificaciones_data(request)
+    institucion = ConfiguracionInstitucion.get_activa()
+    excel_bytes = reports.generar_excel_calificaciones(registros, institucion)
+    response = HttpResponse(excel_bytes, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="Consolidado_Calificaciones.xlsx"'
+    return response
+
 
 @login_required
 def ajustes_view(request):
@@ -440,6 +1172,14 @@ def ajustes_view(request):
         institucion.director_nombre = request.POST.get('director_nombre', institucion.director_nombre).strip()
         institucion.direccion = request.POST.get('direccion', institucion.direccion).strip()
         institucion.telefono = request.POST.get('telefono', institucion.telefono).strip()
+
+        if request.POST.get('eliminar_logo') == '1':
+            if institucion.logo:
+                institucion.logo.delete(save=False)
+                institucion.logo = None
+        elif 'logo' in request.FILES:
+            institucion.logo = request.FILES['logo']
+
         institucion.save()
         messages.success(request, "¡Ajustes institucionales guardados con éxito!")
         return redirect('ajustes_view')
@@ -488,6 +1228,12 @@ def usuario_create(request):
         }
         success, res = api_client.create_usuario(data)
         if success:
+            # Sincronizar en Django User para acceso al portal web
+            from django.contrib.auth.models import User
+            dj_user, created = User.objects.get_or_create(username=correo, defaults={"email": correo, "first_name": nombre})
+            dj_user.set_password(password)
+            dj_user.save()
+            PerfilUsuario.objects.update_or_create(user=dj_user, defaults={"rol": rol_nuevo})
             messages.success(request, f"¡Usuario '{nombre}' ({rol_nuevo}) creado y autorizado exitosamente!")
         else:
             messages.error(request, f"Error al crear usuario: {res}")
@@ -502,7 +1248,16 @@ def usuario_toggle_estado(request, id):
         return redirect('dashboard')
 
     if request.method == "POST":
+        usuarios = api_client.get_usuarios()
+        target = next((u for u in usuarios if u.get("id") == id), None)
         if api_client.toggle_usuario_estado(id):
+            if target:
+                correo = target.get("correo")
+                from django.contrib.auth.models import User
+                dj_user = User.objects.filter(email__iexact=correo).first() or User.objects.filter(username__iexact=correo).first()
+                if dj_user:
+                    dj_user.is_active = not target.get("estado", True)
+                    dj_user.save()
             messages.success(request, "Estado de autorización actualizado correctamente.")
         else:
             messages.error(request, "No se pudo actualizar el estado del usuario.")
@@ -522,7 +1277,16 @@ def usuario_update_password(request, id):
             messages.error(request, "La contraseña no puede estar vacía.")
             return redirect('usuarios_list')
 
+        usuarios = api_client.get_usuarios()
+        target = next((u for u in usuarios if u.get("id") == id), None)
         if api_client.update_usuario_password(id, nueva_pass):
+            if target:
+                correo = target.get("correo")
+                from django.contrib.auth.models import User
+                dj_user = User.objects.filter(email__iexact=correo).first() or User.objects.filter(username__iexact=correo).first()
+                if dj_user:
+                    dj_user.set_password(nueva_pass)
+                    dj_user.save()
             messages.success(request, "¡Contraseña actualizada con éxito!")
         else:
             messages.error(request, "No se pudo actualizar la contraseña.")
@@ -537,10 +1301,236 @@ def usuario_delete(request, id):
         return redirect('dashboard')
 
     if request.method == "POST":
+        usuarios = api_client.get_usuarios()
+        target = next((u for u in usuarios if u.get("id") == id), None)
         if api_client.delete_usuario(id):
+            if target:
+                correo = target.get("correo")
+                from django.contrib.auth.models import User
+                User.objects.filter(email__iexact=correo).delete()
+                User.objects.filter(username__iexact=correo).delete()
             messages.success(request, "Usuario eliminado correctamente.")
         else:
             messages.error(request, "No se pudo eliminar el usuario.")
 
     return redirect('usuarios_list')
+
+# ==================== AULAS Y HORARIOS ====================
+@login_required
+def aulas_horarios_view(request):
+    rol = get_role(request.user)
+    
+    # Parámetros de filtro
+    seccion_id_str = request.GET.get('seccion_id', '')
+    profesor_id_str = request.GET.get('profesor_id', '')
+    active_tab = request.GET.get('tab', 'horarios')
+
+    seccion_id = int(seccion_id_str) if seccion_id_str.isdigit() else None
+    profesor_id = int(profesor_id_str) if profesor_id_str.isdigit() else None
+
+    aulas = api_client.get_aulas()
+    secciones = api_client.get_secciones()
+    profesores = api_client.get_profesores()
+    asignaturas = api_client.get_asignaturas()
+    anios = api_client.get_anios()
+
+    # Si no se filtró sección ni profesor, pero hay secciones, preseleccionar la primera para vista limpia
+    if seccion_id is None and profesor_id is None and secciones:
+        seccion_id = secciones[0].get('id')
+
+    horarios = api_client.get_horarios(grado_seccion_id=seccion_id, profesor_id=profesor_id)
+
+    # Agrupar horarios por día de la semana
+    dias = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"]
+    horarios_por_dia = {d: [] for d in dias}
+    for h in horarios:
+        d = h.get("dia_semana", "Lunes")
+        if d in horarios_por_dia:
+            horarios_por_dia[d].append(h)
+        else:
+            horarios_por_dia["Lunes"].append(h)
+
+    # Identificar la sección seleccionada y su aula base
+    seccion_actual = next((s for s in secciones if s.get('id') == seccion_id), None)
+
+    context = {
+        "rol_actual": rol,
+        "aulas": aulas,
+        "secciones": secciones,
+        "profesores": profesores,
+        "asignaturas": asignaturas,
+        "anios": anios,
+        "horarios": horarios,
+        "horarios_por_dia": horarios_por_dia,
+        "dias": dias,
+        "seccion_id": seccion_id,
+        "profesor_id": profesor_id,
+        "seccion_actual": seccion_actual,
+        "active_tab": active_tab,
+        "total_aulas": len(aulas),
+        "total_secciones": len(secciones),
+        "total_horarios": len(horarios),
+    }
+    return render(request, "portal/horarios.html", context)
+
+@login_required
+def horario_create(request):
+    rol = get_role(request.user)
+    if rol != 'Director':
+        messages.error(request, "Acceso Denegado: Solo la Dirección General puede programar la carga horaria.")
+        return redirect('horarios_view')
+
+    if request.method == "POST":
+        gs_id = request.POST.get("grado_seccion_id")
+        m_id = request.POST.get("materia_id")
+        p_id = request.POST.get("profesor_id")
+        anio_id = request.POST.get("anio_lectivo_id") or 1
+        dia = request.POST.get("dia_semana")
+        hora_ini = request.POST.get("hora_inicio")
+        hora_fin = request.POST.get("hora_fin")
+        aula_esp = request.POST.get("aula_especial_id") or None
+
+        if not (gs_id and m_id and p_id and dia and hora_ini and hora_fin):
+            messages.error(request, "Todos los campos de materia, docente, sección, día y bloque horario son requeridos.")
+            return redirect(f"/horarios/?seccion_id={gs_id}")
+
+        data = {
+            "grado_seccion_id": int(gs_id),
+            "materia_id": int(m_id),
+            "profesor_id": int(p_id),
+            "anio_lectivo_id": int(anio_id),
+            "dia_semana": dia,
+            "hora_inicio": hora_ini,
+            "hora_fin": hora_fin,
+            "aula_especial_id": int(aula_esp) if aula_esp and aula_esp.isdigit() else None
+        }
+
+        success, res = api_client.create_horario(data)
+        if success:
+            messages.success(request, "¡Bloque horario asignado exitosamente!")
+        else:
+            messages.error(request, f"Conflicto de Horario: {res}")
+
+        return redirect(f"/horarios/?seccion_id={gs_id}")
+
+    return redirect('horarios_view')
+
+@login_required
+def horario_delete(request, id):
+    rol = get_role(request.user)
+    if rol != 'Director':
+        messages.error(request, "Acceso Denegado: Solo la Dirección General puede eliminar bloques de horario.")
+        return redirect('horarios_view')
+
+    seccion_id = request.POST.get("seccion_id", "")
+    if request.method == "POST":
+        success, res = api_client.delete_horario(id)
+        if success:
+            messages.success(request, "Bloque horario eliminado correctamente.")
+        else:
+            messages.error(request, f"No se pudo eliminar el bloque: {res}")
+
+    url = f"/horarios/?seccion_id={seccion_id}" if seccion_id else "/horarios/"
+    return redirect(url)
+
+@login_required
+def aula_create(request):
+    rol = get_role(request.user)
+    if rol != 'Director':
+        messages.error(request, "Acceso Denegado: Solo Dirección General puede administrar infraestructura y aulas.")
+        return redirect('horarios_view')
+
+    if request.method == "POST":
+        codigo = request.POST.get("codigo", "").strip().upper()
+        nombre = request.POST.get("nombre", "").strip()
+        tipo = request.POST.get("tipo", "Estandar")
+        capacidad = request.POST.get("capacidad")
+        ubicacion = request.POST.get("ubicacion", "").strip()
+
+        if not codigo or not nombre:
+            messages.error(request, "Código y nombre de aula son obligatorios.")
+            return redirect('/horarios/?tab=aulas')
+
+        data = {
+            "codigo": codigo,
+            "nombre": nombre,
+            "tipo": tipo,
+            "capacidad": int(capacidad) if capacidad and capacidad.isdigit() else 35,
+            "ubicacion": ubicacion or None,
+            "estado": True
+        }
+        success, res = api_client.create_aula(data)
+        if success:
+            messages.success(request, f"¡Aula '{nombre}' ({codigo}) registrada con éxito!")
+        else:
+            messages.error(request, f"Error al registrar aula: {res}")
+
+    return redirect('/horarios/?tab=aulas')
+
+@login_required
+def aula_delete(request, id):
+    rol = get_role(request.user)
+    if rol != 'Director':
+        messages.error(request, "Acceso Denegado: Solo la Dirección General puede eliminar aulas.")
+        return redirect('horarios_view')
+
+    if request.method == "POST":
+        success, res = api_client.delete_aula(id)
+        if success:
+            messages.success(request, "Aula eliminada correctamente del inventario.")
+        else:
+            messages.error(request, f"No se pudo eliminar el aula: {res}")
+
+    return redirect('/horarios/?tab=aulas')
+
+@login_required
+def seccion_create(request):
+    rol = get_role(request.user)
+    if rol != 'Director':
+        messages.error(request, "Acceso Denegado: Solo Dirección puede habilitar nuevas secciones para el ciclo lectivo.")
+        return redirect('horarios_view')
+
+    if request.method == "POST":
+        grado = request.POST.get("grado", "").strip()
+        seccion = request.POST.get("seccion", "").strip().upper()
+        anio = request.POST.get("anio_lectivo")
+        aula_base = request.POST.get("aula_base_id")
+
+        if not grado or not seccion or not anio:
+            messages.error(request, "Grado, sección y año lectivo son obligatorios.")
+            return redirect('/horarios/?tab=secciones')
+
+        data = {
+            "grado": grado,
+            "seccion": seccion,
+            "anio_lectivo": int(anio),
+            "aula_base_id": int(aula_base) if aula_base and aula_base.isdigit() else None
+        }
+        success, res = api_client.create_seccion(data)
+        if success:
+            messages.success(request, f"¡Sección '{grado} {seccion}' habilitada para el año lectivo {anio}!")
+        else:
+            messages.error(request, f"Error al crear sección: {res}")
+
+    return redirect('/horarios/?tab=secciones')
+
+@login_required
+def seccion_asignar_aula(request, id):
+    rol = get_role(request.user)
+    if rol != 'Director':
+        messages.error(request, "Acceso Denegado: Solo Dirección puede asignar aulas base a secciones.")
+        return redirect('horarios_view')
+
+    if request.method == "POST":
+        aula_base_id = request.POST.get("aula_base_id")
+        ab_id = int(aula_base_id) if aula_base_id and aula_base_id.isdigit() else None
+        success, res = api_client.update_seccion_aula(id, ab_id)
+        if success:
+            messages.success(request, "¡Aula base asignada exitosamente a la sección!")
+        else:
+            messages.error(request, f"Conflicto de asignación: {res}")
+
+    return redirect('/horarios/?tab=secciones')
+
+
 

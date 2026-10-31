@@ -16,7 +16,7 @@ class ApiService {
       return 'http://127.0.0.1:8001';
     }
     if (Platform.isAndroid) {
-      // 10.0.2.2 es el alias del host local para el emulador de Android
+      // 10.0.2.2 es el alias de localhost para el emulador Android
       return 'http://10.0.2.2:8001';
     }
     return 'http://127.0.0.1:8001';
@@ -24,6 +24,29 @@ class ApiService {
 
   static void setBaseUrl(String url) {
     _customBaseUrl = url;
+  }
+
+  // ==================== INSTITUCIÓN ====================
+  static Future<Institucion> getInstitucion() async {
+    try {
+      final res = await http.get(Uri.parse('$baseUrl/institucion/')).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes));
+        return Institucion.fromJson(data);
+      }
+    } catch (e) {
+      debugPrint('Error al consultar institución desde la API: $e');
+    }
+    return Institucion(
+      id: 1,
+      nombre: 'Complejo Educativo San Bartolomé',
+      codigoMined: '10245',
+      anioLectivo: '2026',
+      regimen: 'Régimen Trimestral',
+      directorNombre: 'Lic. Roberto Mendoza',
+      telefono: '2222-3333',
+      direccion: 'San Bartolomé Perulapía, Cuscatlán',
+    );
   }
 
   // ==================== SESIÓN / AUTH ====================
@@ -48,30 +71,57 @@ class ApiService {
         return {'success': false, 'message': error['detail'] ?? 'Credenciales incorrectas'};
       }
     } catch (e) {
-      // Si la API no está corriendo o hay timeout, permitir acceso con docente registrado para pruebas
-      if (correo.toLowerCase().contains('carlos') || correo.toLowerCase().contains('docente') || correo.toLowerCase().contains('juan')) {
-        final mockUser = {
-          'id': 1,
-          'nombre': 'Prof. Carlos Juan Pérez',
-          'correo': correo,
-          'rol': 'Profesor',
-          'token': 'demo_offline_token',
-        };
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_data', jsonEncode(mockUser));
-        return {'success': true, 'data': mockUser, 'offline': true};
-      }
-      return {'success': false, 'message': 'No se pudo conectar con el servidor ($baseUrl). Verifique que la API esté iniciada.'};
+      return {'success': false, 'message': 'No se pudo conectar con el servidor ($baseUrl). Verifique la conexión institucional.'};
     }
   }
 
-  static Future<Map<String, dynamic>?> getCurrentUser() async {
+  static Future<Map<String, dynamic>?> getCurrentUser({bool validateOnline = true}) async {
     final prefs = await SharedPreferences.getInstance();
     final str = prefs.getString('user_data');
-    if (str != null) {
-      return jsonDecode(str);
+    if (str == null) return null;
+
+    Map<String, dynamic> userMap;
+    try {
+      final map = jsonDecode(str);
+      if (map is Map<String, dynamic> && map.containsKey('usuario') && map['usuario'] is Map<String, dynamic>) {
+        userMap = Map<String, dynamic>.from(map['usuario']);
+      } else if (map is Map<String, dynamic>) {
+        userMap = Map<String, dynamic>.from(map);
+      } else {
+        await logout();
+        return null;
+      }
+    } catch (e) {
+      await logout();
+      return null;
     }
-    return null;
+
+    if (validateOnline) {
+      final userId = userMap['id'];
+      if (userId != null) {
+        try {
+          final res = await http.get(Uri.parse('$baseUrl/auth/me/$userId')).timeout(const Duration(seconds: 4));
+          if (res.statusCode == 404 || res.statusCode == 401 || res.statusCode == 403) {
+            // El usuario fue eliminado o suspendido en el servidor
+            debugPrint('Sesión invalidada por el servidor (código ${res.statusCode}). Cerrando sesión local...');
+            await logout();
+            return null;
+          } else if (res.statusCode == 200) {
+            final freshData = jsonDecode(utf8.decode(res.bodyBytes));
+            userMap = Map<String, dynamic>.from(freshData);
+            final map = jsonDecode(str);
+            if (map is Map<String, dynamic> && map.containsKey('usuario')) {
+              map['usuario'] = userMap;
+              await prefs.setString('user_data', jsonEncode(map));
+            }
+          }
+        } catch (e) {
+          debugPrint('Aviso: Validación de sesión offline temporal: $e');
+        }
+      }
+    }
+
+    return userMap;
   }
 
   static Future<void> logout() async {
@@ -80,84 +130,45 @@ class ApiService {
   }
 
   // ==================== ASIGNATURAS / CURSOS ====================
-  static Future<List<Asignatura>> getAsignaturas() async {
+  static Future<List<Asignatura>> getAsignaturas({String? profesorNombre}) async {
     try {
-      final res = await http.get(Uri.parse('$baseUrl/asignaturas/')).timeout(const Duration(seconds: 4));
+      String url = '$baseUrl/asignaturas/';
+      if (profesorNombre != null && profesorNombre.isNotEmpty) {
+        url += '?profesor_nombre=${Uri.encodeComponent(profesorNombre)}';
+      }
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final List list = jsonDecode(utf8.decode(res.bodyBytes));
         return list.map((j) => Asignatura.fromJson(j)).toList();
       }
-    } catch (_) {}
-
-    // Datos predeterminados sincronizados con el prototipo de Figma si está offline
-    return [
-      Asignatura(
-        id: 1,
-        codigo: 'MAT-7A',
-        nombre: 'Matemáticas',
-        gradoSeccion: 'Séptimo Grado - Sección A',
-        profesorNombre: 'Prof. Juan Pérez',
-        descripcion: 'Álgebra básica, aritmética y resolución de problemas.',
-      ),
-      Asignatura(
-        id: 2,
-        codigo: 'CN-8A',
-        nombre: 'Ciencias Físicas y Naturales',
-        gradoSeccion: 'Octavo Grado - Sección A',
-        profesorNombre: 'Prof. Juan Pérez',
-        descripcion: 'Biología, física elemental y ecosistemas.',
-      ),
-      Asignatura(
-        id: 3,
-        codigo: 'GEO-9C',
-        nombre: 'Geometría y Estadística',
-        gradoSeccion: 'Noveno Grado - Sección C',
-        profesorNombre: 'Prof. Juan Pérez',
-        descripcion: 'Teoremas geométricos y probabilidad descriptiva.',
-      ),
-      Asignatura(
-        id: 4,
-        codigo: 'MAT-7B',
-        nombre: 'Matemáticas',
-        gradoSeccion: 'Séptimo Grado - Sección B',
-        profesorNombre: 'Prof. Juan Pérez',
-        descripcion: 'Aritmética y razonamiento cuantitativo.',
-      ),
-    ];
+    } catch (e) {
+      debugPrint('Error al obtener asignaturas: $e');
+    }
+    return [];
   }
 
   // ==================== ESTUDIANTES ====================
   static Future<List<Estudiante>> getEstudiantes({String? gradoSeccion}) async {
     try {
-      final res = await http.get(Uri.parse('$baseUrl/estudiantes/')).timeout(const Duration(seconds: 4));
+      String url = '$baseUrl/estudiantes/';
+      if (gradoSeccion != null && gradoSeccion.isNotEmpty) {
+        url += '?grado_seccion=${Uri.encodeComponent(gradoSeccion)}';
+      }
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final List list = jsonDecode(utf8.decode(res.bodyBytes));
-        List<Estudiante> todos = list.map((j) => Estudiante.fromJson(j)).toList();
-        if (gradoSeccion != null && gradoSeccion.isNotEmpty) {
-          final filtrados = todos.where((e) => e.gradoSeccion.toLowerCase() == gradoSeccion.toLowerCase()).toList();
-          if (filtrados.isNotEmpty) return filtrados;
-        }
-        if (todos.isNotEmpty) return todos;
+        return list.map((j) => Estudiante.fromJson(j)).toList();
       }
-    } catch (_) {}
-
-    // Lista del prototipo oficial de Figma
-    return [
-      Estudiante(id: 1, nie: '2026101', nombreCompleto: 'Álvarez Romero, Mateo', gradoSeccion: 'Séptimo Grado - Sección A', encargado: 'Ana Romero', telefono: '7823-1122'),
-      Estudiante(id: 2, nie: '2026102', nombreCompleto: 'Benítez Solís, Sofía', gradoSeccion: 'Séptimo Grado - Sección A', encargado: 'Roberto Benítez', telefono: '7190-4433'),
-      Estudiante(id: 3, nie: '2026103', nombreCompleto: 'Castillo Morales, Diego', gradoSeccion: 'Séptimo Grado - Sección A', encargado: 'Marta Castillo', telefono: '7455-2288'),
-      Estudiante(id: 4, nie: '2026104', nombreCompleto: 'Delgado Ruiz, Camila', gradoSeccion: 'Séptimo Grado - Sección A', encargado: 'José Delgado', telefono: '7233-9900'),
-      Estudiante(id: 5, nie: '2026105', nombreCompleto: 'Espinoza Vega, Daniel', gradoSeccion: 'Séptimo Grado - Sección A', encargado: 'Rosa Vega', telefono: '7611-3344'),
-      Estudiante(id: 6, nie: '2026106', nombreCompleto: 'Flores Martínez, Kevin', gradoSeccion: 'Séptimo Grado - Sección A', encargado: 'Mario Flores', telefono: '7922-8877'),
-      Estudiante(id: 7, nie: '2026107', nombreCompleto: 'Gómez Portillo, Andrea', gradoSeccion: 'Séptimo Grado - Sección A', encargado: 'Elena Portillo', telefono: '7344-5566'),
-      Estudiante(id: 8, nie: '2026108', nombreCompleto: 'Hernández Rivas, Mateo', gradoSeccion: 'Séptimo Grado - Sección A', encargado: 'Luis Hernández', telefono: '7588-9911'),
-    ];
+    } catch (e) {
+      debugPrint('Error al obtener estudiantes: $e');
+    }
+    return [];
   }
 
   // ==================== ASISTENCIAS ====================
   static Future<List<Asistencia>> getAsistencias({int? asignaturaId, String? fecha}) async {
     try {
-      final res = await http.get(Uri.parse('$baseUrl/asistencias/')).timeout(const Duration(seconds: 4));
+      final res = await http.get(Uri.parse('$baseUrl/asistencias/')).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final List list = jsonDecode(utf8.decode(res.bodyBytes));
         List<Asistencia> asistencias = list.map((j) => Asistencia.fromJson(j)).toList();
@@ -169,7 +180,9 @@ class ApiService {
         }
         return asistencias;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error al obtener asistencias: $e');
+    }
     return [];
   }
 
@@ -191,29 +204,39 @@ class ApiService {
           'estado': estado,
           'observaciones': observaciones,
         }),
-      ).timeout(const Duration(seconds: 4));
+      ).timeout(const Duration(seconds: 5));
       return res.statusCode == 200 || res.statusCode == 201;
-    } catch (_) {
-      return true; // Simulación exitosa offline
+    } catch (e) {
+      debugPrint('Error al guardar asistencia: $e');
+      return false;
     }
   }
 
   // ==================== CALIFICACIONES ====================
-  static Future<List<Calificacion>> getCalificaciones({int? asignaturaId, int? periodoId}) async {
+  static Future<List<Calificacion>> getCalificaciones({
+    int? asignaturaId,
+    int? periodoId,
+    String? tipoEvaluacion,
+  }) async {
     try {
-      final res = await http.get(Uri.parse('$baseUrl/calificaciones/')).timeout(const Duration(seconds: 4));
+      final queryParams = <String, String>{};
+      if (asignaturaId != null) queryParams['asignatura_id'] = asignaturaId.toString();
+      if (periodoId != null) queryParams['periodo_id'] = periodoId.toString();
+      if (tipoEvaluacion != null && tipoEvaluacion.isNotEmpty) {
+        queryParams['tipo_evaluacion'] = tipoEvaluacion;
+      }
+
+      final uri = Uri.parse('$baseUrl/calificaciones/').replace(
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
+      final res = await http.get(uri).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final List list = jsonDecode(utf8.decode(res.bodyBytes));
-        List<Calificacion> califs = list.map((j) => Calificacion.fromJson(j)).toList();
-        if (asignaturaId != null) {
-          califs = califs.where((c) => c.asignaturaId == asignaturaId).toList();
-        }
-        if (periodoId != null) {
-          califs = califs.where((c) => c.periodoId == periodoId).toList();
-        }
-        return califs;
+        return list.map((j) => Calificacion.fromJson(j)).toList();
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error al obtener calificaciones: $e');
+    }
     return [];
   }
 
@@ -235,27 +258,124 @@ class ApiService {
           'nota': nota,
           'tipo_evaluacion': tipoEvaluacion,
         }),
-      ).timeout(const Duration(seconds: 4));
+      ).timeout(const Duration(seconds: 5));
       return res.statusCode == 200 || res.statusCode == 201;
-    } catch (_) {
-      return true; // Simulación exitosa offline
+    } catch (e) {
+      debugPrint('Error al registrar calificación: $e');
+      return false;
     }
   }
 
   // ==================== PERÍODOS ====================
   static Future<List<Periodo>> getPeriodos() async {
     try {
-      final res = await http.get(Uri.parse('$baseUrl/periodos/')).timeout(const Duration(seconds: 4));
+      final res = await http.get(Uri.parse('$baseUrl/periodos/')).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final List list = jsonDecode(utf8.decode(res.bodyBytes));
         return list.map((j) => Periodo.fromJson(j)).toList();
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error al obtener períodos: $e');
+    }
+    return [];
+  }
 
-    return [
-      Periodo(id: 1, nombre: 'Trimestre 1', anioLectivoId: 1, estado: 'Abierto'),
-      Periodo(id: 2, nombre: 'Trimestre 2', anioLectivoId: 1, estado: 'Abierto'),
-      Periodo(id: 3, nombre: 'Trimestre 3', anioLectivoId: 1, estado: 'Cerrado'),
-    ];
+  // ==================== ACTIVIDADES EVALUATIVAS ====================
+  static Future<List<ActividadEvaluativa>> getActividades({
+    int? asignaturaId,
+    int? periodoId,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (asignaturaId != null) queryParams['asignatura_id'] = asignaturaId.toString();
+      if (periodoId != null) queryParams['periodo_id'] = periodoId.toString();
+
+      final uri = Uri.parse('$baseUrl/actividades/').replace(
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
+      final res = await http.get(uri).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final List list = jsonDecode(utf8.decode(res.bodyBytes));
+        return list.map((j) => ActividadEvaluativa.fromJson(j)).toList();
+      }
+    } catch (e) {
+      debugPrint('Error al obtener actividades evaluativas: $e');
+    }
+    return [];
+  }
+
+  static Future<ActividadEvaluativa?> crearActividad({
+    required int asignaturaId,
+    required int periodoId,
+    required String nombre,
+    required String tipo,
+    required double ponderacion,
+    String? fecha,
+    String? descripcion,
+  }) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/actividades/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'asignatura_id': asignaturaId,
+          'periodo_id': periodoId,
+          'nombre': nombre,
+          'tipo': tipo,
+          'ponderacion': ponderacion,
+          'fecha': fecha,
+          'descripcion': descripcion,
+        }),
+      ).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes));
+        return ActividadEvaluativa.fromJson(data);
+      }
+    } catch (e) {
+      debugPrint('Error al crear actividad evaluativa: $e');
+    }
+    return null;
+  }
+
+  static Future<bool> eliminarActividad(int actividadId) async {
+    try {
+      final res = await http.delete(
+        Uri.parse('$baseUrl/actividades/$actividadId'),
+      ).timeout(const Duration(seconds: 5));
+      return res.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error al eliminar actividad evaluativa: $e');
+      return false;
+    }
+  }
+
+  // ==================== HORARIOS DE CLASE ====================
+  static Future<List<HorarioClase>> getHorarios({
+    int? profesorId,
+    String? profesorNombre,
+    String? diaSemana,
+  }) async {
+    try {
+      String url = '$baseUrl/horarios/';
+      final qp = <String, String>{};
+      if (profesorId != null) qp['profesor_id'] = profesorId.toString();
+      if (diaSemana != null && diaSemana.isNotEmpty) qp['dia_semana'] = diaSemana;
+      if (qp.isNotEmpty) {
+        url += '?${Uri(queryParameters: qp).query}';
+      }
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final List list = jsonDecode(utf8.decode(res.bodyBytes));
+        var items = list.map((j) => HorarioClase.fromJson(j)).toList();
+        if (profesorNombre != null && profesorNombre.trim().isNotEmpty) {
+          final normProf = profesorNombre.toLowerCase().trim();
+          items = items.where((h) => h.profesorNombre.toLowerCase().contains(normProf)).toList();
+        }
+        return items;
+      }
+    } catch (e) {
+      debugPrint('Error al obtener horarios de clase: $e');
+    }
+    return [];
   }
 }

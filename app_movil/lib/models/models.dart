@@ -1,3 +1,38 @@
+class Institucion {
+  final int id;
+  final String nombre;
+  final String codigoMined;
+  final String anioLectivo;
+  final String regimen;
+  final String directorNombre;
+  final String telefono;
+  final String direccion;
+
+  Institucion({
+    required this.id,
+    required this.nombre,
+    required this.codigoMined,
+    required this.anioLectivo,
+    required this.regimen,
+    required this.directorNombre,
+    required this.telefono,
+    required this.direccion,
+  });
+
+  factory Institucion.fromJson(Map<String, dynamic> json) {
+    return Institucion(
+      id: json['id'] ?? 1,
+      nombre: json['nombre'] ?? 'Centro Educativo',
+      codigoMined: json['codigo_mined'] ?? '',
+      anioLectivo: json['anio_lectivo'] ?? '2026',
+      regimen: json['regimen'] ?? 'Régimen Trimestral',
+      directorNombre: json['director_nombre'] ?? '',
+      telefono: json['telefono'] ?? '',
+      direccion: json['direccion'] ?? '',
+    );
+  }
+}
+
 class Docente {
   final int id;
   final String nombre;
@@ -31,6 +66,8 @@ class Asignatura {
   final String gradoSeccion;
   final String profesorNombre;
   final String descripcion;
+  final String? aulaCodigo;
+  final String? aulaNombre;
 
   Asignatura({
     required this.id,
@@ -39,6 +76,8 @@ class Asignatura {
     required this.gradoSeccion,
     required this.profesorNombre,
     required this.descripcion,
+    this.aulaCodigo,
+    this.aulaNombre,
   });
 
   factory Asignatura.fromJson(Map<String, dynamic> json) {
@@ -49,6 +88,8 @@ class Asignatura {
       gradoSeccion: json['grado_seccion'] ?? 'General',
       profesorNombre: json['profesor_nombre'] ?? 'Sin asignar',
       descripcion: json['descripcion'] ?? '',
+      aulaCodigo: json['aula_codigo'],
+      aulaNombre: json['aula_nombre'],
     );
   }
 }
@@ -164,3 +205,101 @@ class Periodo {
 
   bool get estaAbierto => estado.toLowerCase() == 'abierto';
 }
+
+
+class ActividadEvaluativa {
+  final int id;
+  final int asignaturaId;
+  final int periodoId;
+  final String nombre;
+  final String tipo; // 'Examen', 'Tarea', 'Guía', 'Laboratorio', 'Proyecto'
+  final double ponderacion;
+  final String? fecha;
+  final String? descripcion;
+
+  ActividadEvaluativa({
+    required this.id,
+    required this.asignaturaId,
+    required this.periodoId,
+    required this.nombre,
+    required this.tipo,
+    required this.ponderacion,
+    this.fecha,
+    this.descripcion,
+  });
+
+  factory ActividadEvaluativa.fromJson(Map<String, dynamic> json) {
+    return ActividadEvaluativa(
+      id: json['id'] ?? 0,
+      asignaturaId: json['asignatura_id'] ?? 0,
+      periodoId: json['periodo_id'] ?? 0,
+      nombre: json['nombre'] ?? '',
+      tipo: json['tipo'] ?? 'Examen',
+      ponderacion: (json['ponderacion'] is num) ? (json['ponderacion'] as num).toDouble() : 0.0,
+      fecha: json['fecha'],
+      descripcion: json['descripcion'],
+    );
+  }
+
+  String get displayName => '$nombre (${ponderacion.toStringAsFixed(0)}%)';
+}
+
+class HorarioClase {
+  final int id;
+  final int gradoSeccionId;
+  final int materiaId;
+  final int profesorId;
+  final int anioLectivoId;
+  final String diaSemana;
+  final String horaInicio;
+  final String horaFin;
+  final String gradoSeccion;
+  final String materiaNombre;
+  final String profesorNombre;
+  final String aulaCodigo;
+  final String aulaNombre;
+  final bool esAulaEspecial;
+
+  HorarioClase({
+    required this.id,
+    required this.gradoSeccionId,
+    required this.materiaId,
+    required this.profesorId,
+    required this.anioLectivoId,
+    required this.diaSemana,
+    required this.horaInicio,
+    required this.horaFin,
+    required this.gradoSeccion,
+    required this.materiaNombre,
+    required this.profesorNombre,
+    required this.aulaCodigo,
+    required this.aulaNombre,
+    this.esAulaEspecial = false,
+  });
+
+  factory HorarioClase.fromJson(Map<String, dynamic> json) {
+    return HorarioClase(
+      id: json['id'] ?? 0,
+      gradoSeccionId: json['grado_seccion_id'] ?? 0,
+      materiaId: json['materia_id'] ?? 0,
+      profesorId: json['profesor_id'] ?? 0,
+      anioLectivoId: json['anio_lectivo_id'] ?? 1,
+      diaSemana: json['dia_semana'] ?? '',
+      horaInicio: json['hora_inicio'] ?? '',
+      horaFin: json['hora_fin'] ?? '',
+      gradoSeccion: json['grado_seccion'] ?? '',
+      materiaNombre: json['materia_nombre'] ?? '',
+      profesorNombre: json['profesor_nombre'] ?? '',
+      aulaCodigo: json['aula_codigo'] ?? '',
+      aulaNombre: json['aula_nombre'] ?? '',
+      esAulaEspecial: json['es_aula_especial'] ?? false,
+    );
+  }
+
+  String get rangoHoras {
+    final ini = horaInicio.length >= 5 ? horaInicio.substring(0, 5) : horaInicio;
+    final fin = horaFin.length >= 5 ? horaFin.substring(0, 5) : horaFin;
+    return '$ini - $fin';
+  }
+}
+

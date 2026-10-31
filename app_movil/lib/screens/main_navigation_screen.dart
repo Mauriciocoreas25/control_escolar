@@ -1,10 +1,12 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
-import 'attendance_screen.dart';
-import 'courses_screen.dart';
-import 'grades_screen.dart';
+import 'asistencia_screen.dart';
+import 'cursos_screen.dart';
+import 'grados_screen.dart';
+import 'horario_docente_screen.dart';
 import 'login_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -27,6 +29,21 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   Future<void> _loadUser() async {
     final user = await ApiService.getCurrentUser();
+    if (user == null) {
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sesión expirada o usuario no registrado en el sistema escolar.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     setState(() => _currentUser = user);
   }
 
@@ -41,20 +58,32 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cerrar Sesión', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: const Text('¿Está seguro de que desea salir de la aplicación?', style: TextStyle(fontSize: 13)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: const [
+            Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 22),
+            SizedBox(width: 8),
+            Text('Cerrar Sesión', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          ],
+        ),
+        content: const Text(
+          '¿Está seguro de que desea salir del Portal Móvil Docente?',
+          style: TextStyle(fontSize: 13, color: AppTheme.primaryDark),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+            child: const Text('Cancelar', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.statusAusente,
               foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Cerrar Sesión'),
+            child: const Text('Cerrar Sesión', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -73,100 +102,126 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     final screens = [
-      CoursesScreen(onNavigateTab: _onNavigateTab),
-      AttendanceScreen(selectedCourse: _selectedCourseForAction),
-      GradesScreen(selectedCourse: _selectedCourseForAction),
+      CursosScreen(onNavigateTab: _onNavigateTab),
+      HorarioDocenteScreen(onNavigateTab: _onNavigateTab),
+      AsistenciaScreen(selectedCourse: _selectedCourseForAction),
+      GradosScreen(selectedCourse: _selectedCourseForAction),
+      _buildPerfilScreen(),
     ];
 
     return Scaffold(
+      extendBody: true,
       body: screens[_currentIndex],
       drawer: Drawer(
+        backgroundColor: Colors.white,
         child: SafeArea(
           child: Column(
             children: [
+              // Cabecera con Degradado y Glass Card
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                color: AppTheme.primaryNavy,
+                padding: const EdgeInsets.all(22),
+                decoration: const BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 50,
-                      height: 50,
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withOpacity(0.35)),
                       ),
                       alignment: Alignment.center,
-                      child: const Text(
-                        'DOC',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.primaryNavy,
-                        ),
+                      child: const Icon(Icons.school_rounded, color: Colors.white, size: 28),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      _currentUser?['nombre'] ?? 'Docente Autorizado',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 2),
                     Text(
-                      _currentUser?['nombre'] ?? 'Prof. Carlos Juan Pérez',
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      _currentUser?['correo'] ?? 'docente@santabartolome.edu.sv',
+                      _currentUser?['correo'] ?? 'docente@santasofia.edu.sv',
                       style: const TextStyle(color: Color(0xFF93C5FD), fontSize: 12),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 10),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withOpacity(0.25)),
                       ),
-                      child: const Text(
-                        'Docente Autorizado',
-                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.verified_rounded, color: Color(0xFF38BDF8), size: 13),
+                          SizedBox(width: 5),
+                          Text(
+                            'Docente Activo 2026',
+                            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
 
-              ListTile(
-                leading: const Icon(Icons.school_outlined, color: AppTheme.primaryNavy),
-                title: const Text('Mis Cursos Asignados', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                selected: _currentIndex == 0,
-                onTap: () {
-                  Navigator.pop(context);
-                  _onNavigateTab(0);
-                },
+              const SizedBox(height: 12),
+
+              _buildDrawerItem(
+                icon: Icons.auto_stories_outlined,
+                activeIcon: Icons.auto_stories,
+                title: 'Mis Cursos Asignados',
+                index: 0,
               ),
-              ListTile(
-                leading: const Icon(Icons.fact_check_outlined, color: AppTheme.primaryNavy),
-                title: const Text('Pase de Asistencia', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                selected: _currentIndex == 1,
-                onTap: () {
-                  Navigator.pop(context);
-                  _onNavigateTab(1);
-                },
+              _buildDrawerItem(
+                icon: Icons.calendar_month_outlined,
+                activeIcon: Icons.calendar_month,
+                title: 'Mi Horario Semanal',
+                index: 1,
               ),
-              ListTile(
-                leading: const Icon(Icons.assignment_turned_in_outlined, color: AppTheme.primaryNavy),
-                title: const Text('Registro de Notas', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                selected: _currentIndex == 2,
-                onTap: () {
-                  Navigator.pop(context);
-                  _onNavigateTab(2);
-                },
+              _buildDrawerItem(
+                icon: Icons.checklist_rtl_outlined,
+                activeIcon: Icons.checklist_rtl,
+                title: 'Pase de Asistencia',
+                index: 2,
+              ),
+              _buildDrawerItem(
+                icon: Icons.assignment_turned_in_outlined,
+                activeIcon: Icons.assignment_turned_in,
+                title: 'Registro de Calificaciones',
+                index: 3,
+              ),
+              _buildDrawerItem(
+                icon: Icons.person_outline_rounded,
+                activeIcon: Icons.person_rounded,
+                title: 'Mi Perfil Docente',
+                index: 4,
               ),
 
-              const Divider(),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Divider(color: AppTheme.borderSubtle),
+              ),
 
               ListTile(
-                leading: const Icon(Icons.info_outline, color: Color(0xFF64748B)),
-                title: const Text('Configuración Servidor API', style: TextStyle(fontSize: 13)),
-                subtitle: Text(ApiService.baseUrl, style: const TextStyle(fontSize: 11)),
+                leading: const Icon(Icons.settings_ethernet_rounded, color: Color(0xFF64748B), size: 20),
+                title: const Text('Conexión del Sistema', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                subtitle: Text(
+                  ApiService.baseUrl,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   _showServerConfigDialog();
@@ -175,36 +230,359 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
               const Spacer(),
 
-              ListTile(
-                leading: const Icon(Icons.logout, color: AppTheme.statusAusente),
-                title: const Text('Cerrar Sesión', style: TextStyle(fontSize: 13, color: AppTheme.statusAusente, fontWeight: FontWeight.w700)),
-                onTap: _handleLogout,
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _handleLogout,
+                    icon: const Icon(Icons.logout_rounded, size: 18, color: AppTheme.statusAusente),
+                    label: const Text(
+                      'Cerrar Sesión',
+                      style: TextStyle(color: AppTheme.statusAusente, fontWeight: FontWeight.w700, fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFFECDD3)),
+                      backgroundColor: const Color(0xFFFFF1F2),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(height: 12),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.book_outlined),
-            activeIcon: Icon(Icons.book),
-            label: 'Mis Cursos',
+
+      // Barra de Navegación Flotante con Glassmorphism
+      bottomNavigationBar: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withOpacity(0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              height: 68,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.88),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.70),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(0, Icons.auto_stories_outlined, Icons.auto_stories, 'Cursos'),
+                  _buildNavItem(1, Icons.calendar_month_outlined, Icons.calendar_month, 'Horario'),
+                  _buildNavItem(2, Icons.checklist_rtl_outlined, Icons.checklist_rtl, 'Asistencia'),
+                  _buildNavItem(3, Icons.assignment_turned_in_outlined, Icons.assignment_turned_in, 'Notas'),
+                  _buildNavItem(4, Icons.person_outline_rounded, Icons.person_rounded, 'Perfil'),
+                ],
+              ),
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.check_circle_outline),
-            activeIcon: Icon(Icons.check_circle),
-            label: 'Asistencia',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required IconData activeIcon,
+    required String title,
+    required int index,
+  }) {
+    final isSelected = _currentIndex == index;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+      decoration: BoxDecoration(
+        color: isSelected ? const Color(0xFFEFF6FF) : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          isSelected ? activeIcon : icon,
+          color: isSelected ? AppTheme.primaryNavy : const Color(0xFF64748B),
+          size: 21,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected ? AppTheme.primaryNavy : const Color(0xFF334155),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.edit_note_outlined),
-            activeIcon: Icon(Icons.edit_note),
-            label: 'Notas',
+        ),
+        onTap: () {
+          Navigator.pop(context);
+          _onNavigateTab(index);
+        },
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label) {
+    final isSelected = _currentIndex == index;
+
+    return InkWell(
+      onTap: () => setState(() => _currentIndex = index),
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 16 : 10,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          gradient: isSelected ? AppTheme.buttonGradient : null,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF2563EB).withOpacity(0.30),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isSelected ? activeIcon : icon,
+              size: 20,
+              color: isSelected ? Colors.white : const Color(0xFF64748B),
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPerfilScreen() {
+    final nombre = _currentUser?['nombre'] ?? 'Docente Autorizado';
+    final correo = _currentUser?['correo'] ?? 'docente@santasofia.edu.sv';
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: AmbientBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Mi Perfil Docente',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.primaryDark,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.logout_rounded, color: Color(0xFFDC2626)),
+                      tooltip: 'Cerrar Sesión',
+                      onPressed: _handleLogout,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 18),
+
+                // Tarjeta Glassmorphic de Identidad
+                GlassContainer(
+                  borderRadius: 24,
+                  blur: 20,
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 76,
+                        height: 76,
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.buttonGradient,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF2563EB).withOpacity(0.35),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.person_rounded, size: 44, color: Colors.white),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        nombre,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.primaryDark,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        correo,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.emeraldGradient,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF059669).withOpacity(0.25),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Text(
+                          '• Sesión Institucional Verificada',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                // Conexión del Servidor
+                GlassContainer(
+                  borderRadius: 18,
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.dns_rounded, size: 18, color: AppTheme.primaryNavy),
+                          SizedBox(width: 8),
+                          Text(
+                            'CONEXIÓN DEL SERVIDOR ESCOLAR',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.primaryNavy,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              ApiService.baseUrl,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontFamily: 'monospace',
+                                color: Color(0xFF334155),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryNavy,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: _showServerConfigDialog,
+                            child: const Text('Cambiar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Botón de Cierre de Sesión
+                Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.roseGradient,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFDC2626).withOpacity(0.35),
+                        blurRadius: 16,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: _handleLogout,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.logout_rounded, color: Colors.white, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Cerrar Sesión Móvil',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -214,20 +592,21 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Servidor API FastAPI', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('Conexión del Sistema', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'IP/Host del Backend (puerto 8001):',
+              'Dirección IP/Host del Servidor:',
               style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: controller,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 isDense: true,
                 hintText: 'http://10.0.2.2:8001',
               ),
@@ -237,6 +616,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryNavy,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             onPressed: () {
               ApiService.setBaseUrl(controller.text.trim());
               Navigator.pop(ctx);

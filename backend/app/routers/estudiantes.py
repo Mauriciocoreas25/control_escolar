@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from app.core.database import get_db
 from app.models.models import Estudiante
 from app.schemas.schemas import EstudianteCreate, EstudianteResponse
@@ -8,8 +8,16 @@ from app.schemas.schemas import EstudianteCreate, EstudianteResponse
 router = APIRouter(prefix="/estudiantes", tags=["Estudiantes"])
 
 @router.get("/", response_model=List[EstudianteResponse])
-def listar_estudiantes(db: Session = Depends(get_db)):
-    return db.query(Estudiante).all()
+def listar_estudiantes(grado_seccion: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(Estudiante)
+    if grado_seccion:
+        variante = grado_seccion.replace("º", "°") if "º" in grado_seccion else grado_seccion.replace("°", "º")
+        query = query.filter(
+            (Estudiante.grado_seccion == grado_seccion) |
+            (Estudiante.grado_seccion == variante) |
+            (Estudiante.grado_seccion.ilike(f"%{grado_seccion.strip()}%"))
+        )
+    return query.all()
 
 @router.post("/", response_model=EstudianteResponse)
 def crear_estudiante(estudiante: EstudianteCreate, db: Session = Depends(get_db)):
