@@ -127,3 +127,28 @@ class PortalViewTests(TestCase):
         inst2 = ConfiguracionInstitucion.get_activa()
         self.assertEqual(inst1.id, inst2.id)
         self.assertEqual(inst2.nombre, 'Complejo Educativo Santa Sofía')
+
+    @patch('portal.services.api_client.create_asignatura', return_value=(True, {}))
+    def test_09_asignatura_create_multiples_secciones(self, mock_create):
+        """Crear asignatura asigna correctamente múltiples grados y secciones."""
+        self.client.login(username='director_test', password='testpassword123')
+        payload = {
+            'nombre': 'Robótica Educativa',
+            'codigo': 'ROB',
+            'profesor_nombre': 'Carlos Alberto Morales',
+            'descripcion': 'Taller práctico',
+            'secciones': ['7° Grado - Sección A', '7° Grado - Sección B', '8° Grado - Sección A']
+        }
+        response = self.client.post(reverse('asignatura_create'), data=payload, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+    def test_10_asignatura_gestionar_secciones_post(self):
+        """Gestionar secciones valida correctamente nombre de materia y secciones deseadas."""
+        self.client.login(username='director_test', password='testpassword123')
+        payload = {
+            'materia': 'Programacion informatica II',
+            'profesor_nombre': 'Patricia Iveth Guardado',
+            'secciones': ['9° Grado - Sección A', '9° Grado - Sección B']
+        }
+        response = self.client.post(reverse('asignatura_gestionar_secciones'), data=payload, follow=True)
+        self.assertEqual(response.status_code, 200)

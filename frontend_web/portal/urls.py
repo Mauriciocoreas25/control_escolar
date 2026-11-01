@@ -23,6 +23,7 @@ urlpatterns = [
     # Asignaturas / Carga Académica
     path('carga-academica/', views.carga_academica, name='carga_academica'),
     path('carga-academica/reasignar-materia/', views.carga_academica_reasignar_materia, name='carga_academica_reasignar_materia'),
+    path('carga-academica/gestionar-secciones/', views.asignatura_gestionar_secciones, name='asignatura_gestionar_secciones'),
     path('asignaturas/nueva/', views.asignatura_create, name='asignatura_create'),
     path('asignaturas/<int:id>/editar/', views.asignatura_update, name='asignatura_update'),
     path('asignaturas/<int:id>/eliminar/', views.asignatura_delete, name='asignatura_delete'),

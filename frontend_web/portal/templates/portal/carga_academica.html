@@ -124,15 +124,26 @@
                 {{ c.total_secciones }}
               </td>
 
-              <!-- Botón Reasignar Carga Completa -->
+              <!-- Botón Reasignar Carga Completa y Gestionar Secciones -->
               {% if user_rol == 'Director' %}
               <td class="px-5 py-3.5 text-right whitespace-nowrap">
-                <button type="button" 
-                  onclick="openReasignarMateriaModal('{{ c.materia }}', '{{ c.ciclo }}', '{{ c.profesor_nombre }}', '{{ c.ids_str }}')"
-                  class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-xs transition inline-flex items-center gap-1">
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
-                  <span>Reasignar Docente</span>
-                </button>
+                <div class="flex items-center justify-end gap-1.5">
+                  <button type="button" 
+                    onclick="openGestionarSeccionesModal('{{ c.materia|escapejs }}', '{{ c.ciclo|escapejs }}', '{{ c.profesor_nombre|escapejs }}', '{{ c.secciones_csv|escapejs }}')"
+                    class="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded shadow-xs transition inline-flex items-center gap-1.5"
+                    title="Asignar o modificar las secciones de esta materia">
+                    <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                    <span>Gestionar Secciones</span>
+                  </button>
+
+                  <button type="button" 
+                    onclick="openReasignarMateriaModal('{{ c.materia|escapejs }}', '{{ c.ciclo|escapejs }}', '{{ c.profesor_nombre|escapejs }}', '{{ c.ids_str|escapejs }}')"
+                    class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-xs transition inline-flex items-center gap-1"
+                    title="Reasignar docente a todas las secciones de esta materia">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                    <span>Reasignar Docente</span>
+                  </button>
+                </div>
               </td>
               {% endif %}
             </tr>
@@ -247,60 +258,217 @@
   </div>
 </div>
 
-<!-- Modal: Registrar Asignatura Individual -->
-<div id="modal-asignatura" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4">
-    <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+<!-- Modal: Registrar Asignatura (Multi-Sección y Selección por Grado) -->
+<div id="modal-asignatura" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+  <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 space-y-4 my-8 max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-200 shrink-0">
       <div>
         <h3 class="text-base font-bold text-slate-900">Registrar Asignatura</h3>
-        <p class="text-xs text-slate-500">Asigne la materia a un grado, sección y docente</p>
+        <p class="text-xs text-slate-500">Asigne la materia a uno o varios grados y secciones con su docente titular</p>
       </div>
       <button onclick="closeModal('modal-asignatura')" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
     </div>
 
-    <form method="POST" action="{% url 'asignatura_create' %}" class="space-y-4">
+    <form method="POST" action="{% url 'asignatura_create' %}" class="space-y-4 overflow-y-auto pr-1 flex-1">
       {% csrf_token %}
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Código *</label>
-          <input type="text" name="codigo" required placeholder="Ej: MAT-7A, CIEN-02" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50 font-mono">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre de la Materia *</label>
+          <input type="text" name="nombre" list="lista-materias-sugeridas" required placeholder="Ej: Programación e Informática II" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50">
+          <datalist id="lista-materias-sugeridas">
+            <option value="Matemáticas">
+            <option value="Lenguaje y Literatura">
+            <option value="Ciencias Naturales">
+            <option value="Estudios Sociales">
+            <option value="Educación Física">
+            <option value="Moral y Cívica">
+            <option value="Ortografía y Caligrafía">
+            <option value="Inglés">
+            <option value="Informática y Robótica">
+            <option value="Educación Artística">
+            <option value="Programacion informatica II">
+          </datalist>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre de la Materia *</label>
-          <input type="text" name="nombre" required placeholder="Ej: Matemáticas" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Código Base *</label>
+          <input type="text" name="codigo" required placeholder="Ej: PROG, PI-II, INF" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50 font-mono uppercase">
+          <p class="text-[10px] text-slate-400 mt-0.5">Se añadirá sufijo por sección (ej: PI-II-9A, PI-II-9B)</p>
         </div>
       </div>
 
-      <div>
-        <label class="block text-xs font-semibold text-slate-700 mb-1">Grado y Sección Asignada *</label>
-        <select name="grado_seccion" required class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50">
-          <option value="">-- Seleccionar Sección --</option>
-          {% for s in secciones %}
-            <option value="{{ s.grado }} - {{ s.seccion }}">{{ s.grado }} - {{ s.seccion }}</option>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Docente Titular Asignado</label>
+          <select name="profesor_nombre" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50">
+            <option value="Sin asignar">Sin asignar</option>
+            {% for p in profesores %}
+              <option value="{{ p.nombre }}">{{ p.nombre }} ({{ p.especialidad|default:"Docente" }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Descripción / Observaciones</label>
+          <input type="text" name="descripcion" placeholder="Detalles u objetivos de la asignatura..." class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50">
+        </div>
+      </div>
+
+      <!-- Selector de Secciones por Grado y Ciclo -->
+      <div class="space-y-2 pt-2 border-t border-slate-200">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+          <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+            Grados y Secciones a Asignar *
+          </label>
+          <span class="text-xs font-semibold text-blue-900 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
+            <span id="asig-counter">0</span> secciones seleccionadas
+          </span>
+        </div>
+
+        <!-- Botones de Selección Rápida en 1 clic -->
+        <div class="flex flex-wrap items-center gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+          <span class="text-[11px] font-bold text-slate-500 mr-1">Rápido:</span>
+          <button type="button" onclick="selectCycle('asig', 'c3')" class="px-2 py-1 text-[11px] font-semibold bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-900 border border-slate-300 rounded shadow-xs transition">
+            3er Ciclo (7°, 8°, 9°)
+          </button>
+          <button type="button" onclick="selectCycle('asig', 'c2')" class="px-2 py-1 text-[11px] font-semibold bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-900 border border-slate-300 rounded shadow-xs transition">
+            2do Ciclo (4°, 5°, 6°)
+          </button>
+          <button type="button" onclick="selectCycle('asig', 'c1')" class="px-2 py-1 text-[11px] font-semibold bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-900 border border-slate-300 rounded shadow-xs transition">
+            1er Ciclo (1°, 2°, 3°)
+          </button>
+          <button type="button" onclick="selectAllSections('asig', true)" class="px-2 py-1 text-[11px] font-semibold bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-900 border border-slate-300 rounded shadow-xs transition">
+            Todos los Grados (18)
+          </button>
+          <button type="button" onclick="selectAllSections('asig', false)" class="px-2 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200 rounded shadow-xs transition ml-auto">
+            Limpiar Todo
+          </button>
+        </div>
+
+        <!-- Ciclos y Tarjetas de Grados -->
+        <div class="max-h-56 overflow-y-auto space-y-3 p-3 bg-white border border-slate-200 rounded-lg">
+          {% for ce in ciclos_estructura %}
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-1.5 text-xs font-bold text-slate-900 pb-1 border-b border-slate-100">
+              <span class="w-2 h-2 rounded-full bg-blue-900"></span>
+              <span>{{ ce.ciclo }}</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {% for g in ce.grados %}
+              <div class="p-2 bg-slate-50 border border-slate-200 rounded">
+                <label class="flex items-center gap-1.5 cursor-pointer font-bold text-xs text-slate-800 pb-1 mb-1 border-b border-slate-200">
+                  <input type="checkbox" onchange="toggleGradeGroup('asig', '{{ g.num }}', this.checked)" class="rounded text-blue-900 focus:ring-blue-900" id="asig-grade-{{ g.num }}">
+                  <span>{{ g.grado }} (Ambas Secciones)</span>
+                </label>
+                <div class="space-y-1 pl-3 pt-0.5">
+                  <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                    <input type="checkbox" name="secciones" value="{{ g.sec_a }}" data-grade="{{ g.num }}" data-cycle="{{ ce.ciclo_id }}" onchange="updateSectionCount('asig')" class="asig-sec-cb rounded text-blue-900 focus:ring-blue-900">
+                    <span>Sección A</span>
+                  </label>
+                  <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                    <input type="checkbox" name="secciones" value="{{ g.sec_b }}" data-grade="{{ g.num }}" data-cycle="{{ ce.ciclo_id }}" onchange="updateSectionCount('asig')" class="asig-sec-cb rounded text-blue-900 focus:ring-blue-900">
+                    <span>Sección B</span>
+                  </label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
           {% endfor %}
-          <option value="General">General (Todos los grados)</option>
-        </select>
+        </div>
       </div>
 
-      <div>
-        <label class="block text-xs font-semibold text-slate-700 mb-1">Docente Asignado</label>
-        <select name="profesor_nombre" class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50">
-          <option value="Sin asignar">Sin asignar</option>
-          {% for p in profesores %}
-            <option value="{{ p.nombre }}">{{ p.nombre }} ({{ p.especialidad|default:"Docente" }})</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div>
-        <label class="block text-xs font-semibold text-slate-700 mb-1">Descripción / Observaciones</label>
-        <textarea name="descripcion" rows="2" placeholder="Detalles de la asignatura..." class="w-full text-xs p-2.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-900 focus:outline-none bg-slate-50"></textarea>
-      </div>
-
-      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-slate-200">
+      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-slate-200 shrink-0">
         <button type="button" onclick="closeModal('modal-asignatura')" class="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded">Cancelar</button>
         <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-xs">Guardar Asignatura</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Gestionar Secciones de una Asignatura Existente -->
+<div id="modal-gestionar-secciones" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+  <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 space-y-4 my-8 max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-200 shrink-0">
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Gestionar Secciones Asignadas</h3>
+        <p class="text-xs text-slate-500">Materia: <strong id="gest-materia-txt" class="text-slate-800"></strong> &bull; Docente: <span id="gest-docente-txt" class="text-slate-700"></span></p>
+      </div>
+      <button onclick="closeModal('modal-gestionar-secciones')" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+    </div>
+
+    <form method="POST" action="{% url 'asignatura_gestionar_secciones' %}" class="space-y-4 overflow-y-auto pr-1 flex-1">
+      {% csrf_token %}
+      <input type="hidden" name="materia" id="gest-materia-val">
+      <input type="hidden" name="profesor_nombre" id="gest-docente-val">
+
+      <!-- Selector de Secciones por Grado y Ciclo -->
+      <div class="space-y-2">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+          <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+            Marque las Secciones a las que se impartirá la materia *
+          </label>
+          <span class="text-xs font-semibold text-blue-900 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
+            <span id="gest-counter">0</span> secciones seleccionadas
+          </span>
+        </div>
+
+        <!-- Botones de Selección Rápida en 1 clic -->
+        <div class="flex flex-wrap items-center gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+          <span class="text-[11px] font-bold text-slate-500 mr-1">Rápido:</span>
+          <button type="button" onclick="selectCycle('gest', 'c3')" class="px-2 py-1 text-[11px] font-semibold bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-900 border border-slate-300 rounded shadow-xs transition">
+            3er Ciclo (7°, 8°, 9°)
+          </button>
+          <button type="button" onclick="selectCycle('gest', 'c2')" class="px-2 py-1 text-[11px] font-semibold bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-900 border border-slate-300 rounded shadow-xs transition">
+            2do Ciclo (4°, 5°, 6°)
+          </button>
+          <button type="button" onclick="selectCycle('gest', 'c1')" class="px-2 py-1 text-[11px] font-semibold bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-900 border border-slate-300 rounded shadow-xs transition">
+            1er Ciclo (1°, 2°, 3°)
+          </button>
+          <button type="button" onclick="selectAllSections('gest', true)" class="px-2 py-1 text-[11px] font-semibold bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-900 border border-slate-300 rounded shadow-xs transition">
+            Todos los Grados (18)
+          </button>
+          <button type="button" onclick="selectAllSections('gest', false)" class="px-2 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200 rounded shadow-xs transition ml-auto">
+            Limpiar Todo
+          </button>
+        </div>
+
+        <!-- Ciclos y Tarjetas de Grados -->
+        <div class="max-h-64 overflow-y-auto space-y-3 p-3 bg-white border border-slate-200 rounded-lg">
+          {% for ce in ciclos_estructura %}
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-1.5 text-xs font-bold text-slate-900 pb-1 border-b border-slate-100">
+              <span class="w-2 h-2 rounded-full bg-blue-900"></span>
+              <span>{{ ce.ciclo }}</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {% for g in ce.grados %}
+              <div class="p-2 bg-slate-50 border border-slate-200 rounded">
+                <label class="flex items-center gap-1.5 cursor-pointer font-bold text-xs text-slate-800 pb-1 mb-1 border-b border-slate-200">
+                  <input type="checkbox" onchange="toggleGradeGroup('gest', '{{ g.num }}', this.checked)" class="rounded text-blue-900 focus:ring-blue-900" id="gest-grade-{{ g.num }}">
+                  <span>{{ g.grado }} (Ambas Secciones)</span>
+                </label>
+                <div class="space-y-1 pl-3 pt-0.5">
+                  <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                    <input type="checkbox" name="secciones" value="{{ g.sec_a }}" data-grade="{{ g.num }}" data-cycle="{{ ce.ciclo_id }}" onchange="updateSectionCount('gest')" class="gest-sec-cb rounded text-blue-900 focus:ring-blue-900">
+                    <span>Sección A</span>
+                  </label>
+                  <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                    <input type="checkbox" name="secciones" value="{{ g.sec_b }}" data-grade="{{ g.num }}" data-cycle="{{ ce.ciclo_id }}" onchange="updateSectionCount('gest')" class="gest-sec-cb rounded text-blue-900 focus:ring-blue-900">
+                    <span>Sección B</span>
+                  </label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2.5 pt-3 border-t border-slate-200 shrink-0">
+        <button type="button" onclick="closeModal('modal-gestionar-secciones')" class="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded">Cancelar</button>
+        <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded shadow-xs">Guardar Secciones Asignadas</button>
       </div>
     </form>
   </div>
@@ -411,6 +579,64 @@ function openEditAsignaturaModal(id, codigo, nombre, gradoSeccion, profesorNombr
 function openModal(id) {
   const el = document.getElementById(id);
   if (el) el.classList.remove('hidden');
+}
+
+
+function selectCycle(prefix, cycleId) {
+  const cbs = document.querySelectorAll(`.${prefix}-sec-cb[data-cycle="${cycleId}"]`);
+  cbs.forEach(cb => cb.checked = true);
+  syncGradeHeaders(prefix);
+  updateSectionCount(prefix);
+}
+
+function selectAllSections(prefix, selectAll) {
+  const cbs = document.querySelectorAll(`.${prefix}-sec-cb`);
+  cbs.forEach(cb => cb.checked = selectAll);
+  syncGradeHeaders(prefix);
+  updateSectionCount(prefix);
+}
+
+function toggleGradeGroup(prefix, gradeNum, isChecked) {
+  const cbs = document.querySelectorAll(`.${prefix}-sec-cb[data-grade="${gradeNum}"]`);
+  cbs.forEach(cb => cb.checked = isChecked);
+  updateSectionCount(prefix);
+}
+
+function syncGradeHeaders(prefix) {
+  for (let g = 1; g <= 9; g++) {
+    const cbs = document.querySelectorAll(`.${prefix}-sec-cb[data-grade="${g}"]`);
+    const master = document.getElementById(`${prefix}-grade-${g}`);
+    if (master && cbs.length > 0) {
+      const allChecked = Array.from(cbs).every(cb => cb.checked);
+      master.checked = allChecked;
+    }
+  }
+}
+
+function updateSectionCount(prefix) {
+  const cbs = document.querySelectorAll(`.${prefix}-sec-cb:checked`);
+  const counter = document.getElementById(`${prefix}-counter`);
+  if (counter) counter.textContent = cbs.length;
+  syncGradeHeaders(prefix);
+}
+
+function openGestionarSeccionesModal(materia, ciclo, docente, seccionesCsv) {
+  document.getElementById('gest-materia-val').value = materia;
+  document.getElementById('gest-docente-val').value = docente;
+  document.getElementById('gest-materia-txt').textContent = materia;
+  document.getElementById('gest-docente-txt').textContent = docente || 'Sin asignar';
+
+  const secList = (seccionesCsv || '').split(',').map(s => s.trim()).filter(s => s.length > 0);
+  const secSet = new Set(secList);
+
+  const cbs = document.querySelectorAll('.gest-sec-cb');
+  cbs.forEach(cb => {
+    cb.checked = secSet.has(cb.value);
+  });
+
+  syncGradeHeaders('gest');
+  updateSectionCount('gest');
+  openModal('modal-gestionar-secciones');
 }
 
 function closeModal(id) {

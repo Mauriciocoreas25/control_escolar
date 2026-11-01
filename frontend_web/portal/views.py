@@ -348,6 +348,7 @@ def carga_academica(request):
     cargas_dict = {}
     for a in asignaturas:
         materia = a.get("nombre", "").strip()
+        materia = " ".join(materia.split())
         prof_nom = a.get("profesor_nombre", "Sin asignar").strip()
         ciclo = obtener_ciclo(a.get("grado_seccion", ""))
         sec = a.get("grado_seccion", "General")
@@ -401,6 +402,7 @@ def carga_academica(request):
                 abrevs.append(s)
         c["secciones_resumen"] = ", ".join(abrevs)
         c["ids_str"] = ",".join(c["ids"])
+        c["secciones_csv"] = ",".join(c["secciones"])
 
     # Agrupar por ciclo para la UI
     cargas_por_ciclo = {}
@@ -410,9 +412,40 @@ def carga_academica(request):
             cargas_por_ciclo[ciclo] = []
         cargas_por_ciclo[ciclo].append(c)
 
+    ciclos_estructura = [
+        {
+            "ciclo": "Tercer Ciclo (7º a 9º Grado)",
+            "ciclo_id": "c3",
+            "grados": [
+                {"grado": "7° Grado", "num": "7", "sec_a": "7° Grado - Sección A", "sec_b": "7° Grado - Sección B"},
+                {"grado": "8° Grado", "num": "8", "sec_a": "8° Grado - Sección A", "sec_b": "8° Grado - Sección B"},
+                {"grado": "9° Grado", "num": "9", "sec_a": "9° Grado - Sección A", "sec_b": "9° Grado - Sección B"},
+            ]
+        },
+        {
+            "ciclo": "Segundo Ciclo (4º a 6º Grado)",
+            "ciclo_id": "c2",
+            "grados": [
+                {"grado": "4° Grado", "num": "4", "sec_a": "4° Grado - Sección A", "sec_b": "4° Grado - Sección B"},
+                {"grado": "5° Grado", "num": "5", "sec_a": "5° Grado - Sección A", "sec_b": "5° Grado - Sección B"},
+                {"grado": "6° Grado", "num": "6", "sec_a": "6° Grado - Sección A", "sec_b": "6° Grado - Sección B"},
+            ]
+        },
+        {
+            "ciclo": "Primer Ciclo (1º a 3º Grado)",
+            "ciclo_id": "c1",
+            "grados": [
+                {"grado": "1° Grado", "num": "1", "sec_a": "1° Grado - Sección A", "sec_b": "1° Grado - Sección B"},
+                {"grado": "2° Grado", "num": "2", "sec_a": "2° Grado - Sección A", "sec_b": "2° Grado - Sección B"},
+                {"grado": "3° Grado", "num": "3", "sec_a": "3° Grado - Sección A", "sec_b": "3° Grado - Sección B"},
+            ]
+        }
+    ]
+
     context = {
         "cargas_consolidadas": cargas_consolidadas,
         "cargas_por_ciclo": cargas_por_ciclo,
+        "ciclos_estructura": ciclos_estructura,
         "asignaturas": asignaturas,
         "profesores": profesores,
         "secciones": secciones,
@@ -530,31 +563,254 @@ def carga_academica_reasignar_materia(request):
 
     return redirect("carga_academica")
 
+def generar_codigo_seccion(codigo_base, grado_seccion, existentes=None):
+    """
+    Genera un código limpio y único para una materia en una sección específica.
+    Ej: base='PI-II', grado_seccion='9° Grado - Sección A' -> 'PI-II-9A'
+    """
+    import re
+    g_match = re.search(r'(\d+)', grado_seccion or "")
+    s_match = re.search(r'Secci[oó]n\s+([A-Za-z0-9])', grado_seccion or "", re.IGNORECASE)
+
+    g_num = g_match.group(1) if g_match else ""
+    s_letra = s_match.group(1).upper() if s_match else ""
+    sufijo = f"{g_num}{s_letra}".strip()
+
+    base = (codigo_base or "ASIG").strip().upper()
+    if sufijo and base.endswith(f"-{sufijo}"):
+        candidate = base
+    elif sufijo:
+        candidate = f"{base}-{sufijo}"
+    else:
+        candidate = base
+
+    if not existentes:
+        return candidate
+
+    orig = candidate
+    c = 1
+    while candidate in existentes:
+        candidate = f"{orig}-{c}"
+        c += 1
+    return candidate
+
 @login_required
 def asignatura_create(request):
+    rol = get_role(request.user)
+    if rol != 'Director':
+        messages.error(request, "Acceso Denegado: Solo la Dirección General puede crear asignaturas.")
+        return redirect("carga_academica")
+
     if request.method == "POST":
         codigo = request.POST.get("codigo", "").strip()
         nombre = request.POST.get("nombre", "").strip()
-        grado_seccion = request.POST.get("grado_seccion", "").strip() or "General"
+        nombre = " ".join(nombre.split())
         profesor_nombre = request.POST.get("profesor_nombre", "").strip() or "Sin asignar"
         descripcion = request.POST.get("descripcion", "").strip()
 
+        # Permitir selección múltiple de grados/secciones
+        secciones = request.POST.getlist("secciones")
+        if not secciones:
+            grado_seccion = request.POST.get("grado_seccion", "").strip()
+            if grado_seccion:
+                secciones = [grado_seccion]
+
         if not codigo or not nombre:
-            messages.error(request, "El código y el nombre de la asignatura son obligatorios.")
+            messages.error(request, "El código base y el nombre de la asignatura son obligatorios.")
             return redirect("carga_academica")
 
-        data = {
-            "codigo": codigo,
-            "nombre": nombre,
-            "grado_seccion": grado_seccion,
-            "profesor_nombre": profesor_nombre,
-            "descripcion": descripcion
-        }
-        success, res = api_client.create_asignatura(data)
-        if success:
-            messages.success(request, f"Asignatura '{nombre}' ({codigo}) registrada con éxito.")
-        else:
-            messages.error(request, "Error: El código de asignatura ya está en uso.")
+        if not secciones:
+            messages.error(request, "Debe seleccionar al menos un grado o sección para la asignatura.")
+            return redirect("carga_academica")
+
+        try:
+            import MySQLdb
+            conn = MySQLdb.connect(host='127.0.0.1', user='root', passwd='', db='control_escolar_db', charset='utf8mb4')
+            cur = conn.cursor()
+
+            # 1. Asegurar registro en materias
+            cur.execute("SELECT id FROM materias WHERE nombre_materia = %s LIMIT 1;", (nombre,))
+            row_mat = cur.fetchone()
+            if row_mat:
+                materia_id = row_mat[0]
+            else:
+                cur.execute("INSERT INTO materias (nombre_materia, descripcion) VALUES (%s, %s);", (nombre, descripcion or f"Materia {nombre}"))
+                materia_id = cur.lastrowid
+                conn.commit()
+
+            # 2. Profesor ID
+            profesor_id = None
+            if profesor_nombre and profesor_nombre != "Sin asignar":
+                cur.execute("""
+                    SELECT p.id FROM profesores p
+                    JOIN usuarios u ON p.usuario_id = u.id
+                    WHERE u.nombre LIKE %s OR u.nombre = %s
+                    LIMIT 1;
+                """, (f"%{profesor_nombre}%", profesor_nombre))
+                row_prof = cur.fetchone()
+                if row_prof:
+                    profesor_id = row_prof[0]
+
+            # 3. Códigos existentes
+            cur.execute("SELECT codigo FROM asignaturas;")
+            existentes = {r[0] for r in cur.fetchall()}
+
+            for sec in secciones:
+                cod_final = generar_codigo_seccion(codigo, sec, existentes)
+                existentes.add(cod_final)
+
+                cur.execute("SELECT id FROM asignaturas WHERE nombre = %s AND grado_seccion = %s LIMIT 1;", (nombre, sec))
+                asig_existente = cur.fetchone()
+                if asig_existente:
+                    cur.execute("UPDATE asignaturas SET profesor_nombre = %s, descripcion = %s WHERE id = %s;", (profesor_nombre, descripcion, asig_existente[0]))
+                else:
+                    cur.execute("""
+                        INSERT INTO asignaturas (codigo, nombre, grado_seccion, profesor_nombre, descripcion)
+                        VALUES (%s, %s, %s, %s, %s);
+                    """, (cod_final, nombre, sec, profesor_nombre, descripcion))
+
+                # Vincular en cargas_academicas
+                if profesor_id and materia_id:
+                    parts = sec.split(" - ")
+                    if len(parts) == 2:
+                        cur.execute("SELECT id FROM grados_secciones WHERE grado = %s AND seccion = %s LIMIT 1;", (parts[0].strip(), parts[1].strip()))
+                        gs = cur.fetchone()
+                        if gs:
+                            gs_id = gs[0]
+                            cur.execute("SELECT id FROM cargas_academicas WHERE materia_id = %s AND grado_seccion_id = %s LIMIT 1;", (materia_id, gs_id))
+                            ca = cur.fetchone()
+                            if ca:
+                                cur.execute("UPDATE cargas_academicas SET profesor_id = %s WHERE id = %s;", (profesor_id, ca[0]))
+                            else:
+                                cur.execute("INSERT INTO cargas_academicas (profesor_id, materia_id, grado_seccion_id) VALUES (%s, %s, %s);", (profesor_id, materia_id, gs_id))
+
+            conn.commit()
+            conn.close()
+            messages.success(request, f"Asignatura '{nombre}' asignada exitosamente a {len(secciones)} sección(es).")
+        except Exception as e:
+            # Fallback API
+            for sec in secciones:
+                cod_final = generar_codigo_seccion(codigo, sec)
+                api_client.create_asignatura({
+                    "codigo": cod_final,
+                    "nombre": nombre,
+                    "grado_seccion": sec,
+                    "profesor_nombre": profesor_nombre,
+                    "descripcion": descripcion
+                })
+            messages.success(request, f"Asignatura '{nombre}' registrada para {len(secciones)} sección(es).")
+
+    return redirect("carga_academica")
+
+@login_required
+def asignatura_gestionar_secciones(request):
+    rol = get_role(request.user)
+    if rol != 'Director':
+        messages.error(request, "Acceso Denegado: Solo la Dirección General puede gestionar las secciones de una asignatura.")
+        return redirect("carga_academica")
+
+    if request.method == "POST":
+        materia = request.POST.get("materia", "").strip()
+        materia = " ".join(materia.split())
+        profesor_nombre = request.POST.get("profesor_nombre", "").strip() or "Sin asignar"
+        secciones_deseadas = request.POST.getlist("secciones")
+
+        if not materia:
+            messages.error(request, "Nombre de materia inválido.")
+            return redirect("carga_academica")
+
+        if not secciones_deseadas:
+            messages.error(request, "Debe seleccionar al menos una sección para la materia.")
+            return redirect("carga_academica")
+
+        try:
+            import MySQLdb
+            conn = MySQLdb.connect(host='127.0.0.1', user='root', passwd='', db='control_escolar_db', charset='utf8mb4')
+            cur = conn.cursor()
+
+            # 1. Asignaturas actuales
+            cur.execute("SELECT id, codigo, grado_seccion, profesor_nombre FROM asignaturas WHERE nombre = %s;", (materia,))
+            actuales = cur.fetchall()
+            secciones_actuales = {row[2]: (row[0], row[1]) for row in actuales}
+
+            codigo_base = "ASIG"
+            if actuales:
+                first_cod = actuales[0][1]
+                parts = first_cod.rsplit("-", 1)
+                if len(parts) == 2 and any(char.isdigit() for char in parts[1]):
+                    codigo_base = parts[0]
+                else:
+                    codigo_base = first_cod
+
+            # 2. Materia ID
+            cur.execute("SELECT id FROM materias WHERE nombre_materia = %s LIMIT 1;", (materia,))
+            mat_row = cur.fetchone()
+            if not mat_row:
+                cur.execute("INSERT INTO materias (nombre_materia) VALUES (%s);", (materia,))
+                materia_id = cur.lastrowid
+                conn.commit()
+            else:
+                materia_id = mat_row[0]
+
+            # 3. Profesor ID
+            profesor_id = None
+            if profesor_nombre and profesor_nombre != "Sin asignar":
+                cur.execute("""
+                    SELECT p.id FROM profesores p
+                    JOIN usuarios u ON p.usuario_id = u.id
+                    WHERE u.nombre LIKE %s OR u.nombre = %s LIMIT 1;
+                """, (f"%{profesor_nombre}%", profesor_nombre))
+                p_row = cur.fetchone()
+                if p_row:
+                    profesor_id = p_row[0]
+
+            set_deseadas = set(secciones_deseadas)
+            set_actuales = set(secciones_actuales.keys())
+
+            agregar = set_deseadas - set_actuales
+            eliminar = set_actuales - set_deseadas
+
+            cur.execute("SELECT codigo FROM asignaturas;")
+            existentes_codigos = {r[0] for r in cur.fetchall()}
+
+            for sec in agregar:
+                cod_final = generar_codigo_seccion(codigo_base, sec, existentes_codigos)
+                existentes_codigos.add(cod_final)
+                cur.execute("""
+                    INSERT INTO asignaturas (codigo, nombre, grado_seccion, profesor_nombre, descripcion)
+                    VALUES (%s, %s, %s, %s, %s);
+                """, (cod_final, materia, sec, profesor_nombre, f"Materia {materia}"))
+
+                if profesor_id and materia_id:
+                    parts = sec.split(" - ")
+                    if len(parts) == 2:
+                        cur.execute("SELECT id FROM grados_secciones WHERE grado = %s AND seccion = %s LIMIT 1;", (parts[0].strip(), parts[1].strip()))
+                        gs = cur.fetchone()
+                        if gs:
+                            gs_id = gs[0]
+                            cur.execute("SELECT id FROM cargas_academicas WHERE materia_id = %s AND grado_seccion_id = %s LIMIT 1;", (materia_id, gs_id))
+                            ca = cur.fetchone()
+                            if ca:
+                                cur.execute("UPDATE cargas_academicas SET profesor_id = %s WHERE id = %s;", (profesor_id, ca[0]))
+                            else:
+                                cur.execute("INSERT INTO cargas_academicas (profesor_id, materia_id, grado_seccion_id) VALUES (%s, %s, %s);", (profesor_id, materia_id, gs_id))
+
+            for sec in eliminar:
+                asig_id, _ = secciones_actuales[sec]
+                cur.execute("DELETE FROM asignaturas WHERE id = %s;", (asig_id,))
+                if materia_id:
+                    parts = sec.split(" - ")
+                    if len(parts) == 2:
+                        cur.execute("SELECT id FROM grados_secciones WHERE grado = %s AND seccion = %s LIMIT 1;", (parts[0].strip(), parts[1].strip()))
+                        gs = cur.fetchone()
+                        if gs:
+                            cur.execute("DELETE FROM cargas_academicas WHERE materia_id = %s AND grado_seccion_id = %s;", (materia_id, gs[0]))
+
+            conn.commit()
+            conn.close()
+            messages.success(request, f"Secciones actualizadas para '{materia}': ahora atiende a {len(secciones_deseadas)} sección(es).")
+        except Exception as e:
+            messages.error(request, f"Error al actualizar secciones: {str(e)}")
 
     return redirect("carga_academica")
 
