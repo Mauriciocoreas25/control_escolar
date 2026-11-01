@@ -1,315 +1,403 @@
 {% extends "portal/base.html" %}
 
-{% block title %}Aulas y Horarios - {{ institucion.nombre }}{% endblock %}
+{% block title %}Horarios de Clases - {{ institucion.nombre }}{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
   <!-- Header & Actions -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div>
-      <h2 class="text-xl font-bold text-slate-900">Aulas y Horarios</h2>
+      <h2 class="text-xl font-bold text-slate-900 tracking-tight">Horarios de Clases</h2>
+      <p class="text-xs text-slate-500">Distribución semanal de Aulas y Horarios de clase por sección y docente.</p>
     </div>
 
     {% if rol_actual == 'Director' %}
-    <div class="flex flex-wrap items-center gap-2">
-      <button onclick="openModal('modal-aula')" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg shadow-xs hover:bg-slate-50 transition flex items-center gap-1.5">
-        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-        Nueva Aula
-      </button>
-      <button onclick="openModal('modal-seccion')" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg shadow-xs hover:bg-slate-50 transition flex items-center gap-1.5">
-        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-        Habilitar Sección
-      </button>
-      <button onclick="openModal('modal-horario')" class="px-4 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded-lg shadow-sm transition flex items-center gap-1.5">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        Asignar Horario
+    <div class="flex items-center gap-2">
+      <button onclick="openModal('modal-horario')" class="px-4 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded-lg shadow-xs transition flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+        <span>Programar Bloque de Horario</span>
       </button>
     </div>
     {% endif %}
   </div>
 
-  <!-- Tabs Navigation -->
+  <!-- Tabs Navigation: 3 Pestañas Claras -->
   <div class="border-b border-slate-200">
     <nav class="flex space-x-6 text-sm font-medium" aria-label="Tabs">
-      <a href="?tab=horarios{% if seccion_id %}&seccion_id={{ seccion_id }}{% endif %}{% if profesor_id %}&profesor_id={{ profesor_id }}{% endif %}"
-         class="py-3 px-1 border-b-2 {% if active_tab == 'horarios' %}border-blue-900 text-blue-900 font-bold{% else %}border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300{% endif %} flex items-center gap-2">
+      <!-- Tab 1: Horario por Sección -->
+      <a href="?tab=seccion{% if seccion_id %}&seccion_id={{ seccion_id }}{% endif %}"
+         class="py-3 px-1 border-b-2 {% if active_tab == 'seccion' %}border-blue-900 text-blue-900 font-bold{% else %}border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300{% endif %} flex items-center gap-2">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-        Horarios de Clase
-        <span class="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600 font-semibold">{{ total_horarios }}</span>
+        <span>Horario por Sección</span>
       </a>
 
-      <a href="?tab=secciones"
-         class="py-3 px-1 border-b-2 {% if active_tab == 'secciones' %}border-blue-900 text-blue-900 font-bold{% else %}border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300{% endif %} flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-        Secciones y Aulas Base
-        <span class="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600 font-semibold">{{ total_secciones }}</span>
+      <!-- Tab 2: Horario por Docente -->
+      <a href="?tab=docente{% if profesor_id %}&profesor_id={{ profesor_id }}{% endif %}"
+         class="py-3 px-1 border-b-2 {% if active_tab == 'docente' %}border-blue-900 text-blue-900 font-bold{% else %}border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300{% endif %} flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        <span>Horario por Docente</span>
       </a>
 
+      <!-- Tab 3: Aulas y Espacios -->
       <a href="?tab=aulas"
          class="py-3 px-1 border-b-2 {% if active_tab == 'aulas' %}border-blue-900 text-blue-900 font-bold{% else %}border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300{% endif %} flex items-center gap-2">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-        Catálogo de Aulas
-        <span class="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600 font-semibold">{{ total_aulas }}</span>
+        <span>Aulas y Espacios</span>
+        <span class="px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-600 font-semibold">{{ total_aulas }}</span>
       </a>
     </nav>
   </div>
 
-  <!-- ==================== TAB 1: HORARIOS ==================== -->
-  {% if active_tab == 'horarios' %}
-  <div class="space-y-6">
-    <!-- Filtros de Sección y Docente -->
-    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-      <form method="GET" action="" class="flex flex-wrap items-center gap-4">
-        <input type="hidden" name="tab" value="horarios">
-        <div>
-          <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Filtrar por Sección</label>
-          <select name="seccion_id" onchange="this.form.submit()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 font-medium focus:ring-1 focus:ring-blue-900">
-            <option value="">-- Todas las secciones --</option>
-            {% for s in secciones %}
-            <option value="{{ s.id }}" {% if seccion_id == s.id %}selected{% endif %}>
-              {{ s.grado }} {{ s.seccion }} (Ciclo {{ s.anio_lectivo }})
-            </option>
-            {% endfor %}
-          </select>
-        </div>
+  <!-- ==================== TAB 1: HORARIO POR SECCIÓN ==================== -->
+  {% if active_tab == 'seccion' %}
+  <div class="space-y-4">
+    <!-- Selector Rápido de Secciones por Ciclos Escolar -->
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Seleccionar Sección para Consultar Horario:</span>
+        <span class="text-xs text-slate-500 hidden sm:inline">Haga clic en una sección para ver su horario semanal completo</span>
+      </div>
 
-        <div>
-          <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Filtrar por Docente</label>
-          <select name="profesor_id" onchange="this.form.submit()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 font-medium focus:ring-1 focus:ring-blue-900">
-            <option value="">-- Todos los docentes --</option>
-            {% for p in profesores %}
-            <option value="{{ p.id }}" {% if profesor_id == p.id %}selected{% endif %}>
-              {{ p.nombre }}
-            </option>
+      <div class="space-y-2.5">
+        {% for c in ciclos_secciones %}
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+          <span class="text-xs font-bold text-slate-600 w-44 shrink-0 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-blue-900"></span>
+            {{ c.ciclo }}:
+          </span>
+          <div class="flex flex-wrap gap-1.5 flex-1">
+            {% for s in c.secciones %}
+            <a href="?tab=seccion&seccion_id={{ s.id }}"
+               class="px-2.5 py-1 text-xs rounded transition font-medium {% if seccion_id == s.id %}bg-blue-900 text-white font-bold shadow-xs{% else %}bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-900 border border-slate-200{% endif %}">
+              {{ s.grado }} - {{ s.seccion }}
+            </a>
             {% endfor %}
-          </select>
+          </div>
         </div>
-
-        {% if seccion_id or profesor_id %}
-        <div class="self-end pb-1">
-          <a href="?tab=horarios" class="text-xs text-rose-600 hover:text-rose-800 font-semibold underline">Limpiar filtros</a>
-        </div>
-        {% endif %}
-      </form>
+        {% endfor %}
+      </div>
     </div>
 
-    <!-- Grilla Semanal de Horarios (Lunes a Viernes) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+    <!-- Encabezado de la Sección Seleccionada -->
+    <div class="p-4 bg-white rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-blue-50 text-blue-900 border border-blue-200 flex items-center justify-center font-bold text-sm shrink-0">
+          {{ seccion_actual.grado|slice:":2" }}
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <span>{{ seccion_actual.grado }} - {{ seccion_actual.seccion }}</span>
+            <span class="px-2 py-0.5 text-[11px] font-semibold rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+              {{ total_clases_vista }} clases semanales
+            </span>
+          </h3>
+          <p class="text-xs text-slate-500">
+            Aula Base: <strong class="text-slate-800">{{ seccion_actual.aula_codigo|default:"Sin aula asignada" }}</strong> ({{ seccion_actual.aula_nombre|default:"Edificio Central" }}) &bull; Año Lectivo {{ seccion_actual.anio_lectivo|default:"2026" }}
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="window.print()" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded shadow-xs transition flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          <span>Imprimir Horario</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Grilla Semanal de Clases (Lunes a Viernes) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5">
       {% for dia, slots in horarios_por_dia.items %}
-      {% if dia != 'Sabado' or slots %}
       <div class="bg-white rounded-xl border border-slate-200 shadow-xs flex flex-col overflow-hidden">
         <!-- Encabezado del Día -->
-        <div class="bg-slate-800 text-white px-4 py-2.5 flex items-center justify-between">
+        <div class="bg-slate-800 text-white px-3.5 py-2.5 flex items-center justify-between">
           <span class="font-bold text-xs tracking-wide uppercase">{{ dia }}</span>
-          <span class="px-2 py-0.5 text-[10px] bg-slate-700 rounded-full font-semibold">{{ slots|length }} clases</span>
+          <span class="px-2 py-0.5 text-[10px] bg-slate-700 rounded font-semibold">{{ slots|length }} clases</span>
         </div>
 
         <!-- Clases del Día -->
-        <div class="p-3 space-y-3 flex-1 overflow-y-auto">
+        <div class="p-2.5 space-y-2 flex-1 overflow-y-auto">
           {% for h in slots %}
-          <div class="p-3 rounded-lg border {% if h.es_aula_especial %}border-amber-300 bg-amber-50/50{% else %}border-slate-200 bg-slate-50/50 hover:bg-white{% endif %} transition space-y-2 relative group">
+          <div class="p-2.5 rounded-lg border {% if h.es_aula_especial %}border-amber-300 bg-amber-50/50{% else %}border-slate-200 bg-slate-50/70 hover:bg-white{% endif %} transition space-y-1.5">
             <!-- Hora -->
             <div class="flex items-center justify-between text-xs">
-              <span class="font-mono font-bold text-slate-700">{{ h.hora_inicio|slice:":5" }} - {{ h.hora_fin|slice:":5" }}</span>
+              <span class="font-mono font-bold text-slate-800 text-[11px]">{{ h.hora_inicio|slice:":5" }} - {{ h.hora_fin|slice:":5" }}</span>
               {% if rol_actual == 'Director' %}
               <form method="POST" action="{% url 'horario_delete' h.id %}" onsubmit="return confirm('¿Eliminar bloque horario de {{ h.materia_nombre }}?')" class="inline">
                 {% csrf_token %}
                 <input type="hidden" name="seccion_id" value="{{ seccion_id|default:'' }}">
-                <button type="submit" class="text-rose-500 hover:text-rose-700 text-xs font-bold" title="Eliminar clase">&times;</button>
+                <button type="submit" class="text-slate-400 hover:text-rose-600 text-xs font-bold leading-none px-1" title="Eliminar clase">&times;</button>
               </form>
               {% endif %}
             </div>
 
-            <!-- Materia & Sección -->
+            <!-- Materia -->
             <div>
-              <p class="font-bold text-slate-900 text-xs leading-snug">{{ h.materia_nombre }}</p>
-              <p class="text-[11px] text-slate-500 font-medium">{{ h.grado_seccion }}</p>
+              <p class="font-bold text-slate-900 text-xs leading-tight">{{ h.materia_nombre }}</p>
             </div>
 
-            <!-- Docente que rota a dar la clase -->
+            <!-- Docente que asiste al aula a dar la clase -->
             <div class="flex items-center gap-1.5 text-[11px] text-slate-600">
               <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-              <span class="truncate">{{ h.profesor_nombre }}</span>
+              <span class="truncate font-medium">{{ h.profesor_nombre }}</span>
             </div>
 
-            <!-- Ubicación / Aula (Base vs Especial) -->
-            <div class="pt-1 border-t border-slate-200/60 flex items-center justify-between">
+            <!-- Ubicación / Aula -->
+            <div class="pt-1 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
               {% if h.es_aula_especial %}
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded bg-amber-100 text-amber-900" title="Traslado a laboratorio/taller">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+              <span class="inline-flex items-center gap-1 font-semibold text-amber-900" title="Aula Especial / Laboratorio">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                 Lab: {{ h.aula_codigo }}
               </span>
               {% else %}
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-900" title="Aula Base de la sección">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+              <span class="inline-flex items-center gap-1 font-semibold text-slate-600" title="Aula Base de la Sección">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 Aula: {{ h.aula_codigo }}
               </span>
               {% endif %}
             </div>
           </div>
           {% empty %}
-          <div class="py-8 text-center text-slate-400 text-xs italic">
+          <div class="py-10 text-center text-slate-400 text-xs italic">
             Sin clases asignadas
           </div>
           {% endfor %}
         </div>
       </div>
-      {% endif %}
       {% endfor %}
     </div>
   </div>
   {% endif %}
 
-  <!-- ==================== TAB 2: SECCIONES Y AULA BASE ==================== -->
-  {% if active_tab == 'secciones' %}
-  <div class="space-y-6">
-    <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-      <table class="w-full text-left text-sm text-slate-600">
-        <thead class="bg-slate-100/75 text-xs uppercase text-slate-500 font-semibold border-b border-slate-200">
-          <tr>
-            <th class="px-5 py-3">Grado y Sección</th>
-            <th class="px-5 py-3">Ciclo Lectivo</th>
-            <th class="px-5 py-3">Aula Base Asignada</th>
-            <th class="px-5 py-3">Ubicación Aula</th>
-            <th class="px-5 py-3 text-right">Acción</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100 text-xs">
-          {% for s in secciones %}
-          <tr class="hover:bg-slate-50/75 transition">
-            <td class="px-5 py-3.5 font-bold text-slate-900">
-              {{ s.grado }} {{ s.seccion }}
-            </td>
-            <td class="px-5 py-3.5">
-              <span class="px-2 py-0.5 rounded bg-slate-100 font-semibold text-slate-700">Año {{ s.anio_lectivo }}</span>
-            </td>
-            <td class="px-5 py-3.5 font-medium">
-              {% if s.aula_codigo %}
-              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 font-bold">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                {{ s.aula_codigo }} ({{ s.aula_nombre }})
-              </span>
-              {% else %}
-              <span class="inline-flex items-center px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-semibold">
-                Sin asignar
-              </span>
-              {% endif %}
-            </td>
-            <td class="px-5 py-3.5 text-slate-500">
-              Edificio Central
-            </td>
-            <td class="px-5 py-3.5 text-right">
-              {% if rol_actual == 'Director' %}
-              <form method="POST" action="{% url 'seccion_asignar_aula' s.id %}" class="inline-flex items-center gap-1.5">
-                {% csrf_token %}
-                <select name="aula_base_id" class="text-xs bg-white border border-slate-300 rounded px-2 py-1 text-slate-700 font-medium">
-                  <option value="">-- Cambiar Aula --</option>
-                  {% for a in aulas %}
-                  {% if a.tipo == 'Estandar' or a.tipo == 'Teorica' or not a.tipo %}
-                  <option value="{{ a.id }}" {% if a.id == s.aula_base_id %}selected{% endif %}>
-                    {{ a.codigo }} - {{ a.nombre }} (Cap: {{ a.capacidad }})
-                  </option>
-                  {% endif %}
-                  {% endfor %}
-                </select>
-                <button type="submit" class="px-2.5 py-1 text-xs font-semibold bg-blue-900 text-white rounded hover:bg-blue-950 transition">
-                  Guardar
-                </button>
-              </form>
-              {% else %}
-              <span class="text-slate-400 italic">Solo lectura</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="5" class="px-5 py-8 text-center text-slate-400">
-              No hay secciones registradas para este ciclo lectivo.
-            </td>
-          </tr>
+  <!-- ==================== TAB 2: HORARIO POR DOCENTE ==================== -->
+  {% if active_tab == 'docente' %}
+  <div class="space-y-4">
+    <!-- Selector de Docente -->
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div class="flex-1 max-w-lg">
+        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+          Seleccionar Docente para Consultar su Jornada Semanal:
+        </label>
+        <select onchange="window.location.href='?tab=docente&profesor_id=' + this.value" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-800 focus:ring-1 focus:ring-blue-900">
+          {% for p in profesores %}
+          <option value="{{ p.id }}" {% if profesor_id == p.id %}selected{% endif %}>
+            {{ p.nombre }} ({{ p.especialidad|default:"Docente" }})
+          </option>
           {% endfor %}
-        </tbody>
-      </table>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2 self-end sm:self-auto">
+        <button type="button" onclick="window.print()" class="px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded shadow-xs transition flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          <span>Imprimir Horario Docente</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Encabezado del Docente Seleccionado -->
+    <div class="p-4 bg-white rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-blue-900 text-white flex items-center justify-center font-bold text-sm shrink-0">
+          {{ profesor_actual.nombre|slice:":1" }}
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <span>{{ profesor_actual.nombre }}</span>
+            <span class="px-2 py-0.5 text-[11px] font-semibold rounded bg-blue-50 text-blue-900 border border-blue-200">
+              {{ total_clases_vista }} clases semanales rotando entre secciones
+            </span>
+          </h3>
+          <p class="text-xs text-slate-500">
+            Especialidad: <strong>{{ profesor_actual.especialidad|default:"Docente Titular" }}</strong> &bull; Correo: {{ profesor_actual.correo|default:"santasofia.edu.sv" }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grilla Semanal del Docente (Lunes a Viernes) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5">
+      {% for dia, slots in horarios_por_dia.items %}
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs flex flex-col overflow-hidden">
+        <div class="bg-slate-800 text-white px-3.5 py-2.5 flex items-center justify-between">
+          <span class="font-bold text-xs tracking-wide uppercase">{{ dia }}</span>
+          <span class="px-2 py-0.5 text-[10px] bg-slate-700 rounded font-semibold">{{ slots|length }} clases</span>
+        </div>
+
+        <div class="p-2.5 space-y-2 flex-1 overflow-y-auto">
+          {% for h in slots %}
+          <div class="p-2.5 rounded-lg border {% if h.es_aula_especial %}border-amber-300 bg-amber-50/50{% else %}border-slate-200 bg-slate-50/70 hover:bg-white{% endif %} transition space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-mono font-bold text-slate-800 text-[11px]">{{ h.hora_inicio|slice:":5" }} - {{ h.hora_fin|slice:":5" }}</span>
+            </div>
+
+            <div>
+              <p class="font-bold text-slate-900 text-xs leading-tight">{{ h.materia_nombre }}</p>
+              <p class="text-[11px] font-semibold text-blue-900">{{ h.grado_seccion }}</p>
+            </div>
+
+            <div class="pt-1 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
+              {% if h.es_aula_especial %}
+              <span class="inline-flex items-center gap-1 font-semibold text-amber-900">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                Lab: {{ h.aula_codigo }}
+              </span>
+              {% else %}
+              <span class="inline-flex items-center gap-1 font-semibold text-slate-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Aula: {{ h.aula_codigo }}
+              </span>
+              {% endif %}
+            </div>
+          </div>
+          {% empty %}
+          <div class="py-10 text-center text-slate-400 text-xs italic">
+            Sin clases este día
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
     </div>
   </div>
   {% endif %}
 
-  <!-- ==================== TAB 3: CATÁLOGO DE AULAS ==================== -->
+  <!-- ==================== TAB 3: AULAS Y ESPACIOS ==================== -->
   {% if active_tab == 'aulas' %}
   <div class="space-y-6">
+    <!-- Encabezado con Botón Nueva Aula -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Aulas e Infraestructura Institucional</h3>
+        <p class="text-xs text-slate-500">Aulas base asignadas a las 18 secciones del colegio y espacios especializados.</p>
+      </div>
+      {% if rol_actual == 'Director' %}
+      <button onclick="openModal('modal-aula')" class="px-3.5 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded-lg shadow-xs transition flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+        <span>Registrar Nueva Aula</span>
+      </button>
+      {% endif %}
+    </div>
+
+    <!-- Sección 1: Aulas Base de las 18 Secciones -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-      <table class="w-full text-left text-sm text-slate-600">
-        <thead class="bg-slate-100/75 text-xs uppercase text-slate-500 font-semibold border-b border-slate-200">
-          <tr>
-            <th class="px-5 py-3">Código</th>
-            <th class="px-5 py-3">Nombre del Aula</th>
-            <th class="px-5 py-3">Tipo de Espacio</th>
-            <th class="px-5 py-3">Capacidad</th>
-            <th class="px-5 py-3">Ubicación</th>
-            <th class="px-5 py-3">Estado</th>
-            <th class="px-5 py-3 text-right">Acciones</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100 text-xs">
-          {% for a in aulas %}
-          <tr class="hover:bg-slate-50/75 transition">
-            <td class="px-5 py-3.5 font-mono font-bold text-slate-900">
-              {{ a.codigo }}
-            </td>
-            <td class="px-5 py-3.5 font-bold text-slate-800">
-              {{ a.nombre }}
-            </td>
-            <td class="px-5 py-3.5">
-              {% if a.tipo == 'Laboratorio' %}
-              <span class="px-2 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200">Laboratorio</span>
-              {% elif a.tipo == 'Taller' %}
-              <span class="px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">Taller</span>
-              {% elif a.tipo == 'Cancha' %}
-              <span class="px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Cancha</span>
-              {% else %}
-              <span class="px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">Aula Teórica</span>
-              {% endif %}
-            </td>
-            <td class="px-5 py-3.5 font-semibold text-slate-700">
-              {{ a.capacidad|default:35 }} alumnos
-            </td>
-            <td class="px-5 py-3.5 text-slate-500">
-              {{ a.ubicacion|default:"Pabellón Principal" }}
-            </td>
-            <td class="px-5 py-3.5">
-              <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Activa</span>
-            </td>
-            <td class="px-5 py-3.5 text-right">
+      <div class="p-4 border-b border-slate-200 bg-slate-50/70 flex justify-between items-center">
+        <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Aulas Base Asignadas por Sección (18 Secciones)</h4>
+        <span class="text-xs text-slate-500">Total: 18 secciones activas</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-600">
+          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500 font-bold border-b border-slate-200">
+            <tr>
+              <th class="px-5 py-3">Grado y Sección</th>
+              <th class="px-5 py-3">Año Lectivo</th>
+              <th class="px-5 py-3">Aula Base Asignada</th>
+              <th class="px-5 py-3">Ubicación Física</th>
+              {% if rol_actual == 'Director' %}<th class="px-5 py-3 text-right">Reasignar Aula</th>{% endif %}
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for s in secciones %}
+            <tr class="hover:bg-slate-50/70 transition">
+              <td class="px-5 py-3.5 font-bold text-slate-900">
+                {{ s.grado }} - {{ s.seccion }}
+              </td>
+              <td class="px-5 py-3.5">
+                <span class="px-2 py-0.5 rounded bg-slate-100 font-semibold text-slate-700">Año {{ s.anio_lectivo }}</span>
+              </td>
+              <td class="px-5 py-3.5 font-medium">
+                {% if s.aula_codigo %}
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
+                  {{ s.aula_codigo }} ({{ s.aula_nombre }})
+                </span>
+                {% else %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-semibold">
+                  Sin asignar
+                </span>
+                {% endif %}
+              </td>
+              <td class="px-5 py-3.5 text-slate-500">
+                Pabellón Central
+              </td>
               {% if rol_actual == 'Director' %}
-              <form method="POST" action="{% url 'aula_delete' a.id %}" onsubmit="return confirm('¿Eliminar aula {{ a.codigo }}?')" class="inline">
-                {% csrf_token %}
-                <button type="submit" class="text-rose-600 hover:text-rose-800 font-bold text-xs">Eliminar</button>
-              </form>
-              {% else %}
-              <span class="text-slate-400 italic">Solo lectura</span>
+              <td class="px-5 py-3.5 text-right">
+                <form method="POST" action="{% url 'seccion_asignar_aula' s.id %}" class="inline-flex items-center gap-1.5">
+                  {% csrf_token %}
+                  <select name="aula_base_id" class="text-xs bg-white border border-slate-300 rounded px-2 py-1 text-slate-700 font-medium">
+                    <option value="">-- Cambiar Aula --</option>
+                    {% for a in aulas_estandar %}
+                    <option value="{{ a.id }}" {% if a.id == s.aula_base_id %}selected{% endif %}>
+                      {{ a.codigo }} - {{ a.nombre }} (Cap: {{ a.capacidad }})
+                    </option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="px-2.5 py-1 text-xs font-semibold bg-blue-900 text-white rounded hover:bg-blue-950 transition">
+                    Guardar
+                  </button>
+                </form>
+              </td>
               {% endif %}
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="7" class="px-5 py-8 text-center text-slate-400">
-              No hay aulas registradas en el inventario.
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sección 2: Espacios Especializados y Laboratorios -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <div class="p-4 border-b border-slate-200 bg-slate-50/70 flex justify-between items-center">
+        <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Espacios Especializados y Laboratorios</h4>
+        <span class="text-xs text-slate-500">{{ aulas_especiales|length }} espacios registrados</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-600">
+          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500 font-bold border-b border-slate-200">
+            <tr>
+              <th class="px-5 py-3">Código</th>
+              <th class="px-5 py-3">Nombre del Espacio</th>
+              <th class="px-5 py-3">Tipo</th>
+              <th class="px-5 py-3">Capacidad</th>
+              <th class="px-5 py-3">Ubicación</th>
+              <th class="px-5 py-3">Estado</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for a in aulas_especiales %}
+            <tr class="hover:bg-slate-50/70 transition">
+              <td class="px-5 py-3.5 font-mono font-bold text-blue-900">{{ a.codigo }}</td>
+              <td class="px-5 py-3.5 font-bold text-slate-900">{{ a.nombre }}</td>
+              <td class="px-5 py-3.5">
+                <span class="px-2 py-0.5 rounded font-semibold text-[11px] bg-amber-50 text-amber-800 border border-amber-200">{{ a.tipo }}</span>
+              </td>
+              <td class="px-5 py-3.5">{{ a.capacidad }} estudiantes</td>
+              <td class="px-5 py-3.5 text-slate-500">{{ a.ubicacion|default:"Campus Central" }}</td>
+              <td class="px-5 py-3.5">
+                <span class="px-2 py-0.5 rounded font-semibold text-[11px] bg-emerald-50 text-emerald-800 border border-emerald-200">Operativo</span>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="px-5 py-6 text-center text-slate-400">No hay espacios especializados registrados.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
   {% endif %}
 </div>
 
-<!-- ==================== MODAL 1: REGISTRAR BLOQUE HORARIO ==================== -->
+<!-- ==================== MODAL 1: PROGRAMAR BLOQUE HORARIO ==================== -->
 {% if rol_actual == 'Director' %}
 <div id="modal-horario" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
   <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-4">
     <div class="flex items-center justify-between pb-3 border-b border-slate-200">
-      <h3 class="font-bold text-base text-slate-900">Asignar Bloque de Horario</h3>
+      <div>
+        <h3 class="font-bold text-base text-slate-900">Programar Bloque de Horario</h3>
+        <p class="text-xs text-slate-500">Asigne el horario semanal de una clase para una sección</p>
+      </div>
       <button onclick="closeModal('modal-horario')" class="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
     </div>
 
@@ -321,7 +409,7 @@
         <select name="grado_seccion_id" required class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
           {% for s in secciones %}
           <option value="{{ s.id }}" {% if seccion_id == s.id %}selected{% endif %}>
-            {{ s.grado }} {{ s.seccion }} (Aula Base: {{ s.aula_codigo|default:"Sin aula" }})
+            {{ s.grado }} - {{ s.seccion }} (Aula Base: {{ s.aula_codigo|default:"Sin aula" }})
           </option>
           {% endfor %}
         </select>
@@ -338,7 +426,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Docente (El profesor rota) *</label>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Docente Titular *</label>
           <select name="profesor_id" required class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
             {% for p in profesores %}
             <option value="{{ p.id }}">{{ p.nombre }}</option>
@@ -351,24 +439,23 @@
         <label class="block text-xs font-bold text-slate-700 mb-1">Plantilla de Bloque Horario Escolar</label>
         <select id="preset-bloque" class="w-full text-xs bg-blue-50/70 border border-blue-200 text-blue-900 font-semibold rounded-lg p-2.5" onchange="aplicarBloque(this.value)">
           <option value="">-- Seleccionar Bloque (o ingresar horas abajo) --</option>
-          <option value="07:00|08:30">Bloque 1: 07:00 AM - 08:30 AM (Matemática / Ciencias / Lenguaje)</option>
-          <option value="08:30|09:15">Bloque 2: 08:30 AM - 09:15 AM (Estudios Sociales / Ciencias)</option>
-          <option value="09:45|11:15">Bloque 3: 09:45 AM - 11:15 AM (Inglés / Ed. Física - Cancha)</option>
-          <option value="11:15|12:00">Bloque 4: 11:15 AM - 12:00 PM (Ortografía / Informática - Cómputo)</option>
-          <option value="12:30|14:00">Bloque 5: 12:30 PM - 02:00 PM (Actividades Lúdicas / Tutoría / Talleres)</option>
+          <option value="07:00|08:30">Bloque 1: 07:00 AM - 08:30 AM</option>
+          <option value="08:30|09:15">Bloque 2: 08:30 AM - 09:15 AM</option>
+          <option value="09:45|11:15">Bloque 3: 09:45 AM - 11:15 AM</option>
+          <option value="11:15|12:00">Bloque 4: 11:15 AM - 12:00 PM</option>
+          <option value="12:30|14:00">Bloque 5: 12:30 PM - 02:00 PM</option>
         </select>
       </div>
 
       <div class="grid grid-cols-3 gap-3">
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Día de la Semana *</label>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Día *</label>
           <select name="dia_semana" required class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
             <option value="Lunes">Lunes</option>
             <option value="Martes">Martes</option>
             <option value="Miercoles">Miércoles</option>
             <option value="Jueves">Jueves</option>
             <option value="Viernes">Viernes</option>
-            <option value="Sabado">Sábado</option>
           </select>
         </div>
 
@@ -389,10 +476,8 @@
         </label>
         <select name="aula_especial_id" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
           <option value="">-- Impartir en Aula Base de la Sección (Recomendado) --</option>
-          {% for a in aulas %}
-          {% if a.tipo != 'Estandar' and a.tipo != 'Teorica' %}
+          {% for a in aulas_especiales %}
           <option value="{{ a.id }}">{{ a.nombre }} ({{ a.codigo }}) - {{ a.tipo }}</option>
-          {% endif %}
           {% endfor %}
         </select>
         <p class="text-[11px] text-slate-400 mt-1">Si se deja vacío, la clase se impartirá en el Aula Base fija de los estudiantes.</p>
@@ -453,66 +538,6 @@
       <div class="pt-3 border-t border-slate-200 flex justify-end space-x-2">
         <button type="button" onclick="closeModal('modal-aula')" class="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition">Cancelar</button>
         <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded-lg transition">Guardar Aula</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- ==================== MODAL 3: HABILITAR SECCIÓN ==================== -->
-<div id="modal-seccion" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
-  <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
-    <div class="flex items-center justify-between pb-3 border-b border-slate-200">
-      <h3 class="font-bold text-base text-slate-900">Habilitar Sección para Ciclo Lectivo</h3>
-      <button onclick="closeModal('modal-seccion')" class="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
-    </div>
-
-    <form method="POST" action="{% url 'seccion_create' %}" class="space-y-4">
-      {% csrf_token %}
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Grado *</label>
-          <select name="grado" required class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
-            <option value="7mo Grado">7mo Grado</option>
-            <option value="8vo Grado">8vo Grado</option>
-            <option value="9no Grado">9no Grado</option>
-            <option value="1er Año Bachillerato">1er Año Bachillerato</option>
-            <option value="2do Año Bachillerato">2do Año Bachillerato</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Sección *</label>
-          <input type="text" name="seccion" required placeholder="A, B, C..." class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-bold uppercase">
-        </div>
-      </div>
-
-      <div>
-        <label class="block text-xs font-bold text-slate-700 mb-1">Ciclo Escolar (Año Lectivo) *</label>
-        <select name="anio_lectivo" required class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
-          {% for anio in anios %}
-          <option value="{{ anio.anio }}" {% if anio.estado == 'Activo' %}selected{% endif %}>
-            Año {{ anio.anio }} ({{ anio.estado }})
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div>
-        <label class="block text-xs font-bold text-slate-700 mb-1">Asignar Aula Base Inicial</label>
-        <select name="aula_base_id" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
-          <option value="">-- Asignar más adelante --</option>
-          {% for a in aulas %}
-          {% if a.tipo == 'Estandar' or a.tipo == 'Teorica' or not a.tipo %}
-          <option value="{{ a.id }}">{{ a.codigo }} - {{ a.nombre }} (Cap: {{ a.capacidad }})</option>
-          {% endif %}
-          {% endfor %}
-        </select>
-        <p class="text-[11px] text-slate-400 mt-1">El aula base quedará reservada exclusivamente para esta sección durante el año.</p>
-      </div>
-
-      <div class="pt-3 border-t border-slate-200 flex justify-end space-x-2">
-        <button type="button" onclick="closeModal('modal-seccion')" class="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition">Cancelar</button>
-        <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-blue-900 hover:bg-blue-950 rounded-lg transition">Habilitar Sección</button>
       </div>
     </form>
   </div>

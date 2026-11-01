@@ -1576,10 +1576,13 @@ def usuario_delete(request, id):
 def aulas_horarios_view(request):
     rol = get_role(request.user)
     
-    # Parámetros de filtro
+    # Parámetros de filtro y pestaña activa
+    active_tab = request.GET.get('tab', 'seccion')
+    if active_tab == 'horarios':
+        active_tab = 'seccion'
+
     seccion_id_str = request.GET.get('seccion_id', '')
     profesor_id_str = request.GET.get('profesor_id', '')
-    active_tab = request.GET.get('tab', 'horarios')
 
     seccion_id = int(seccion_id_str) if seccion_id_str.isdigit() else None
     profesor_id = int(profesor_id_str) if profesor_id_str.isdigit() else None
@@ -1590,29 +1593,67 @@ def aulas_horarios_view(request):
     asignaturas = api_client.get_asignaturas()
     anios = api_client.get_anios()
 
-    # Si no se filtró sección ni profesor, pero hay secciones, preseleccionar la primera para vista limpia
-    if seccion_id is None and profesor_id is None and secciones:
-        seccion_id = secciones[0].get('id')
+    # Organizar secciones por ciclo para selector visual rápido
+    ciclos_secciones = [
+        {
+            "ciclo": "Tercer Ciclo (7º a 9º Grado)",
+            "ciclo_id": "c3",
+            "secciones": [s for s in secciones if any(g in s.get("grado", "") for g in ["7", "8", "9"])]
+        },
+        {
+            "ciclo": "Segundo Ciclo (4º a 6º Grado)",
+            "ciclo_id": "c2",
+            "secciones": [s for s in secciones if any(g in s.get("grado", "") for g in ["4", "5", "6"])]
+        },
+        {
+            "ciclo": "Primer Ciclo (1º a 3º Grado)",
+            "ciclo_id": "c1",
+            "secciones": [s for s in secciones if any(g in s.get("grado", "") for g in ["1", "2", "3"])]
+        },
+    ]
 
-    horarios = api_client.get_horarios(grado_seccion_id=seccion_id, profesor_id=profesor_id)
+    # Preseleccionar sección o profesor según la pestaña
+    if active_tab == 'seccion':
+        if seccion_id is None and secciones:
+            s_default = next((s for s in secciones if "7" in s.get("grado", "") and "A" in s.get("seccion", "")), secciones[0])
+            seccion_id = s_default.get('id')
+        horarios = api_client.get_horarios(grado_seccion_id=seccion_id)
+    elif active_tab == 'docente':
+        if profesor_id is None and profesores:
+            profesor_id = profesores[0].get('id')
+        horarios = api_client.get_horarios(profesor_id=profesor_id)
+    else:  # 'aulas'
+        horarios = []
 
     # Agrupar horarios por día de la semana
-    dias = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"]
+    dias = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"]
     horarios_por_dia = {d: [] for d in dias}
     for h in horarios:
         d = h.get("dia_semana", "Lunes")
+        if "iercol" in d.lower():
+            d = "Miercoles"
         if d in horarios_por_dia:
             horarios_por_dia[d].append(h)
-        else:
-            horarios_por_dia["Lunes"].append(h)
 
-    # Identificar la sección seleccionada y su aula base
+    # Ordenar bloques de cada día cronológicamente
+    for d in dias:
+        horarios_por_dia[d].sort(key=lambda x: str(x.get("hora_inicio", "")))
+
+    # Entidades actuales
     seccion_actual = next((s for s in secciones if s.get('id') == seccion_id), None)
+    profesor_actual = next((p for p in profesores if p.get('id') == profesor_id), None)
+
+    # Separar aulas base (estándar) y aulas especiales (laboratorios, talleres, canchas)
+    aulas_especiales = [a for a in aulas if a.get('tipo') not in ['Estandar', 'Teorica', None, '']]
+    aulas_estandar = [a for a in aulas if a.get('tipo') in ['Estandar', 'Teorica', None, '']]
 
     context = {
         "rol_actual": rol,
         "aulas": aulas,
+        "aulas_especiales": aulas_especiales,
+        "aulas_estandar": aulas_estandar,
         "secciones": secciones,
+        "ciclos_secciones": ciclos_secciones,
         "profesores": profesores,
         "asignaturas": asignaturas,
         "anios": anios,
@@ -1622,9 +1663,11 @@ def aulas_horarios_view(request):
         "seccion_id": seccion_id,
         "profesor_id": profesor_id,
         "seccion_actual": seccion_actual,
+        "profesor_actual": profesor_actual,
         "active_tab": active_tab,
         "total_aulas": len(aulas),
         "total_secciones": len(secciones),
+        "total_clases_vista": len(horarios),
         "total_horarios": len(horarios),
     }
     return render(request, "portal/horarios.html", context)
