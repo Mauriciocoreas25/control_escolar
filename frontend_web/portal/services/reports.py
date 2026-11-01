@@ -520,7 +520,7 @@ def generar_excel_calificaciones(registros, institucion):
 # ==============================================================================
 # 3. BOLETAS DE CALIFICACIONES (1 POR PÁGINA PARA IMPRESIÓN DIRECTA)
 # ==============================================================================
-def generar_pdf_boletas(boletas_data, institucion, periodo_nombre="Trimestre 1"):
+def generar_pdf_boletas(boletas_data, institucion, periodo_nombre="Período 1"):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -684,7 +684,7 @@ def generar_pdf_boletas(boletas_data, institucion, periodo_nombre="Trimestre 1")
     return buffer.getvalue()
 
 
-def generar_excel_boletas(boletas_data, institucion, periodo_nombre="Trimestre 1"):
+def generar_excel_boletas(boletas_data, institucion, periodo_nombre="Período 1"):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Resumen de Boletas"

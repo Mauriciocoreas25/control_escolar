@@ -96,7 +96,7 @@ def dashboard(request):
                 "nombre": p.get("nombre"),
                 "estado": p.get("estado", "Abierto"),
                 "anio_lectivo_id": p.get("anio_lectivo_id", 1),
-                "vigencia": "Ciclo Escolar Activo",
+                "vigencia": "Año Lectivo Activo",
                 "avance": 100 if p.get("estado") == "Cerrado" else 84
             })
 
@@ -905,7 +905,7 @@ def periodos_list(request):
 def anio_create(request):
     rol = get_role(request.user)
     if rol != 'Director':
-        messages.error(request, "Solo la Dirección General puede crear nuevos ciclos escolares.")
+        messages.error(request, "Solo la Dirección General puede crear nuevos años lectivos.")
         return redirect("periodos_list")
 
     if request.method == "POST":
@@ -920,9 +920,9 @@ def anio_create(request):
         data = {"anio": anio, "descripcion": descripcion, "estado": estado}
         success, _ = api_client.create_anio(data)
         if success:
-            messages.success(request, f"¡Ciclo escolar {anio} creado con éxito!")
+            messages.success(request, f"¡Año lectivo {anio} creado con éxito!")
         else:
-            messages.error(request, "El ciclo escolar ya se encuentra registrado.")
+            messages.error(request, "El año lectivo ya se encuentra registrado.")
 
     return redirect("periodos_list")
 
@@ -930,7 +930,7 @@ def anio_create(request):
 def anio_delete(request, id):
     rol = get_role(request.user)
     if rol != 'Director':
-        messages.error(request, "Acceso denegado: Solo el Director General puede eliminar ciclos escolares.")
+        messages.error(request, "Acceso denegado: Solo el Director General puede eliminar años lectivos.")
         return redirect("periodos_list")
 
     if request.method == "POST":
@@ -938,14 +938,14 @@ def anio_delete(request, id):
         if success:
             messages.success(request, msg)
         else:
-            messages.error(request, f"No se pudo eliminar el ciclo: {msg}")
+            messages.error(request, f"No se pudo eliminar el año lectivo: {msg}")
     return redirect("periodos_list")
 
 @login_required
 def anio_toggle_estado(request, id):
     rol = get_role(request.user)
     if rol != 'Director':
-        messages.error(request, "Acceso denegado: Solo la Dirección General puede cambiar el estado de los ciclos escolares.")
+        messages.error(request, "Acceso denegado: Solo la Dirección General puede cambiar el estado de los años lectivos.")
         return redirect("periodos_list")
 
     if request.method == "POST":
@@ -955,11 +955,10 @@ def anio_toggle_estado(request, id):
             actual = target.get("estado", "Activo")
             nuevo = "Cerrado" if actual in ["Activo", "Planificado"] else "Activo"
             if api_client.toggle_anio_estado(id, nuevo):
-                estado_texto = "Finalizado / Cerrado" if nuevo == "Cerrado" else "Activo / En Curso"
-                messages.success(request, f"Ciclo {target.get('anio')} marcado como '{estado_texto}'.")
-
+                estado_texto = "Finalizado / Concluido" if nuevo == "Cerrado" else "Activo / En Curso"
+                messages.success(request, f"Año lectivo {target.get('anio')} marcado como '{estado_texto}'.")
             else:
-                messages.error(request, "Error al actualizar el estado del ciclo escolar.")
+                messages.error(request, "Error al actualizar el estado del año lectivo.")
     return redirect("periodos_list")
 
 
@@ -1010,7 +1009,7 @@ def periodo_delete(request, id):
 def periodo_toggle(request, id):
     rol = get_role(request.user)
     if rol != 'Director':
-        messages.error(request, "Acceso Denegado: El bloqueo de períodos lectivos es potestad exclusiva del Director.")
+        messages.error(request, "Acceso Denegado: El control de cierres de período es potestad exclusiva del Director.")
         return redirect('periodos_list')
 
     if request.method == "POST":
@@ -1020,15 +1019,15 @@ def periodo_toggle(request, id):
             nuevo_estado = "Cerrado" if target.get("estado") == "Abierto" else "Abierto"
             ok = api_client.toggle_periodo(
                 id,
-                target.get("nombre", "Trimestre"),
+                target.get("nombre", f"Período {id}"),
                 target.get("anio_lectivo_id", 1),
                 nuevo_estado
             )
             if ok:
                 if nuevo_estado == "Cerrado":
-                    messages.success(request, f"¡Período '{target.get('nombre')}' CERRADO Y BLOQUEADO!")
+                    messages.success(request, f"¡{target.get('nombre')} CERRADO! Calificaciones asentadas y boletas de notas habilitadas para entrega.")
                 else:
-                    messages.success(request, f"¡Período '{target.get('nombre')}' REABIERTO!")
+                    messages.success(request, f"¡{target.get('nombre')} REABIERTO! El registro de notas por docentes ha sido reactivado.")
             else:
                 messages.error(request, "Error al actualizar estado en la API.")
     return redirect('periodos_list')
@@ -1044,10 +1043,15 @@ def get_boletas_data(seccion_filtro=None, periodo_id=None, estudiante_id=None):
     if periodo_id:
         periodo_obj = next((p for p in periodos_raw if str(p.get("id")) == str(periodo_id)), None)
     if not periodo_obj and periodos_raw:
-        periodo_obj = next((p for p in periodos_raw if p.get("estado") == "Abierto"), periodos_raw[0])
+        # Priorizar el período cerrado más reciente donde las boletas ya están emitidas
+        periodos_cerrados = [p for p in periodos_raw if p.get("estado") == "Cerrado"]
+        if periodos_cerrados:
+            periodo_obj = periodos_cerrados[-1]
+        else:
+            periodo_obj = periodos_raw[0]
 
     pid = periodo_obj.get("id") if periodo_obj else None
-    periodo_nombre = periodo_obj.get("nombre", "Trimestre 1") if periodo_obj else "Trimestre 1"
+    periodo_nombre = periodo_obj.get("nombre", "Período 1") if periodo_obj else "Período 1"
 
     target_estudiantes = []
     for e in estudiantes_raw:
@@ -1151,13 +1155,30 @@ def boletas_view(request):
 
     institucion = ConfiguracionInstitucion.get_activa()
     rol = get_role(request.user)
+    periodo_cerrado = (periodo_obj.get("estado") == "Cerrado") if periodo_obj else False
+
+    # Conteo de alumnos por seccion para los filtros rápidos en interfaz
+    estudiantes_raw = api_client.get_estudiantes() or []
+    conteo_por_seccion = {}
+    for e in estudiantes_raw:
+        s = e.get("grado_seccion")
+        if s:
+            conteo_por_seccion[s] = conteo_por_seccion.get(s, 0) + 1
+
+    secciones_con_conteo = [
+        {"nombre": s, "total": conteo_por_seccion.get(s, 0)}
+        for s in secciones
+    ]
 
     context = {
         "boletas": boletas,
         "periodo_nombre": periodo_nombre,
         "periodo_obj": periodo_obj,
+        "periodo_cerrado": periodo_cerrado,
         "periodos": periodos,
         "secciones": secciones,
+        "secciones_con_conteo": secciones_con_conteo,
+        "total_alumnos_colegio": len(estudiantes_raw),
         "seccion_filtro": seccion,
         "periodo_filtro": str(periodo_obj.get("id")) if periodo_obj else "",
         "estudiante_filtro": estudiante_id,
@@ -1181,10 +1202,12 @@ def boletas_export_pdf(request):
     institucion = ConfiguracionInstitucion.get_activa()
     pdf_bytes = reports.generar_pdf_boletas(boletas, institucion, periodo_nombre=periodo_nombre)
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
-    filename = f"Boletas_{periodo_nombre.replace(' ', '_')}.pdf"
+    p_slug = periodo_nombre.replace(' ', '_').replace('í', 'i').replace('Í', 'I')
+    sec_slug = f"_{seccion.replace(' ', '_').replace('°', '').replace('-', '_')}" if seccion else ""
+    filename = f"Boletas_{p_slug}{sec_slug}.pdf"
     if estudiante_id and boletas:
         est_nombre = boletas[0]["estudiante"].get("nombre_completo", "Estudiante").replace(" ", "_")
-        filename = f"Boleta_{est_nombre}_{periodo_nombre.replace(' ', '_')}.pdf"
+        filename = f"Boleta_{est_nombre}_{p_slug}.pdf"
     response['Content-Disposition'] = f'inline; filename="{filename}"'
     return response
 
@@ -1202,7 +1225,8 @@ def boletas_export_excel(request):
     institucion = ConfiguracionInstitucion.get_activa()
     excel_bytes = reports.generar_excel_boletas(boletas, institucion, periodo_nombre=periodo_nombre)
     response = HttpResponse(excel_bytes, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    filename = f"Resumen_Boletas_{periodo_nombre.replace(' ', '_')}.xlsx"
+    p_slug = periodo_nombre.replace(' ', '_').replace('í', 'i').replace('Í', 'I')
+    filename = f"Resumen_Boletas_{p_slug}.xlsx"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 

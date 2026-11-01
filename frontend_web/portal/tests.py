@@ -81,7 +81,7 @@ class PortalViewTests(TestCase):
         {'id': 1, 'nombre': 'Matemáticas', 'codigo': 'MAT-7A', 'grado_seccion': '7° Grado - Sección A'}
     ])
     @patch('portal.services.api_client.get_periodos', return_value=[
-        {'id': 1, 'nombre': 'Trimestre 1'}
+        {'id': 1, 'nombre': 'Período 1'}
     ])
     @patch('portal.services.api_client.get_secciones', return_value=[])
     @patch('portal.services.api_client.get_calificaciones', return_value=[
