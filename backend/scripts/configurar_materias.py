@@ -1,7 +1,7 @@
 import pymysql
 import random
 
-def seed_basic_subjects():
+def configurar_materias():
     conn = pymysql.connect(
         host='127.0.0.1',
         user='root',
@@ -100,4 +100,4 @@ def seed_basic_subjects():
     print(f" -> Insertadas {califs_count} calificaciones para los 12 estudiantes de 1º Grado - Sección A.")
 
 if __name__ == "__main__":
-    seed_basic_subjects()
+    configurar_materias()

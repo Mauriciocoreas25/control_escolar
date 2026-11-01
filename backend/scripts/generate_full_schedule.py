@@ -108,14 +108,14 @@ def run():
         secciones_dict[key] = sid
 
     # 5. Vaciar tabla de horarios existente
-    print("\n -> Vaciando horarios anteriores para reemplazo oficial...")
+    print("\n -> Vaciando horarios anteriores para reemplazo...")
     cursor.execute("DELETE FROM horarios;")
     conn.commit()
 
     dias_semana = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"]
 
     # ==============================================================
-    # BLOQUES HORARIOS OFICIALES SOLICITADOS
+    # BLOQUES HORARIOS DE CLASE
     # B1: 07:00:00 - 08:30:00
     # B2: 08:30:00 - 09:15:00
     # [09:15 - 09:45 RECREO]
@@ -363,7 +363,7 @@ def run():
     cursor.close()
     conn.close()
 
-    print(f"\n -> Horarios oficiales insertados exitosamente: {insertados} bloques lectivos.")
+    print(f"\n -> Horarios insertados exitosamente: {insertados} bloques lectivos.")
     if errores > 0:
         print(f" -> Bloques descartados por colisión de UNIQUE constraint: {errores}")
     print(" -> Proceso finalizado.")

@@ -79,7 +79,7 @@ def run():
     conn.commit()
     print(" -> Institución, Año Lectivo 2026 y Trimestres configurados.")
 
-    # 3. Aulas Oficiales
+    # 3. Aulas Institucionales
     print("\n[3/7] Inyectando 21 Aulas (18 de Grado + 3 Especiales)...")
     aulas_data = [
         ("AUL-101", "Aula 1 - Pabellón A", "Estandar", 30, "Pabellón A"),
@@ -146,7 +146,7 @@ def run():
         key = f"{grado} - {seccion}"
         seccion_id_map[key] = cursor.lastrowid
 
-    # 5. Materias Oficiales
+    # 5. Catálogo de Materias
     print("\n[5/7] Inyectando Catálogo de Materias y Planta Docente Especializada...")
     materias_data = [
         ("Matemáticas", "Álgebra, geometría, aritmética y cálculo aplicado"),
@@ -222,7 +222,7 @@ def run():
 
     print(f" -> Creados {len(planta_docente)} docentes especializados.")
 
-    # 6. Carga Académica Oficial (`asignaturas`)
+    # 6. Carga Académica (`asignaturas`)
     print("\n[6/7] Inyectando Asignaturas distribuidas a sus docentes titulares...")
     asignatura_id_map = {}
     
@@ -326,10 +326,10 @@ def run():
                 VALUES (%s, %s, %s);
             """, (docente_id_by_name[prof_nom], materia_id_map[mat], seccion_id_map[gs]))
 
-    print(f" -> Creadas {len(asignatura_id_map)} asignaturas en la carga académica oficial.")
+    print(f" -> Creadas {len(asignatura_id_map)} asignaturas en la carga académica.")
 
     # 7. Horarios Semanales con ROTACIÓN COMPLETA
-    print("\n[7/7] Inyectando Horarios Oficiales con Rotación Docente (Lunes a Viernes)...")
+    print("\n[7/7] Inyectando Horarios de Clase con Rotación Docente (Lunes a Viernes)...")
     dias_semana = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"]
     bloques_horarios = [
         ("07:00:00", "08:30:00"),  # Bloque 1
@@ -545,7 +545,7 @@ def run():
             cursor.execute("""
                 INSERT INTO asistencias (estudiante_id, fecha, estado, observacion)
                 VALUES (%s, %s, %s, %s);
-            """, (est_id, fecha_asist, estado_asist, "Registro oficial"))
+            """, (est_id, fecha_asist, estado_asist, "Asistencia regular"))
 
     conn.commit()
     cursor.close()

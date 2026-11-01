@@ -455,7 +455,7 @@ class _HorarioDocenteScreenState extends State<HorarioDocenteScreen> {
   }
 
   Widget _buildClassCard(HorarioClase h) {
-    final aula = h.aulaNombre.isNotEmpty ? h.aulaNombre : (h.aulaCodigo.isNotEmpty ? h.aulaCodigo : 'Aula Base');
+    final aula = h.aulaNombre.isNotEmpty ? h.aulaNombre : (h.aulaCodigo.isNotEmpty ? h.aulaCodigo : 'Salón de Clases');
 
     return GlassContainer(
       borderRadius: 18,
@@ -635,7 +635,7 @@ class _DetalleClaseModalState extends State<_DetalleClaseModal> {
   @override
   Widget build(BuildContext context) {
     final h = widget.horario;
-    final aula = h.aulaNombre.isNotEmpty ? h.aulaNombre : (h.aulaCodigo.isNotEmpty ? h.aulaCodigo : 'Aula Base');
+    final aula = h.aulaNombre.isNotEmpty ? h.aulaNombre : (h.aulaCodigo.isNotEmpty ? h.aulaCodigo : 'Salón de Clases');
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,

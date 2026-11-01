@@ -534,7 +534,7 @@ class _CursosScreenState extends State<CursosScreen> {
                 ),
               ),
 
-              // Aula Base / Especial
+              // Salón / Laboratorio
               if (aulaAsignada != null)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),

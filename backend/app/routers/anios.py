@@ -49,7 +49,7 @@ def eliminar_anio(anio_id: int, db: Session = Depends(get_db)):
         if califs > 0:
             raise HTTPException(
                 status_code=400,
-                detail="No se puede eliminar este ciclo escolar porque contiene calificaciones oficiales registradas. Puede cambiar su estado a 'Cerrado / Finalizado'."
+                detail="No se puede eliminar este ciclo escolar porque contiene calificaciones registradas. Puede cambiar su estado a 'Cerrado / Finalizado'."
             )
         for p in periodos:
             db.delete(p)
@@ -57,4 +57,4 @@ def eliminar_anio(anio_id: int, db: Session = Depends(get_db)):
     db.delete(db_anio)
     db.commit()
     return {"mensaje": "Año lectivo eliminado correctamente"}
-
+

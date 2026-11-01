@@ -179,7 +179,7 @@ graph TD
 [Selección de Materia y Fecha] 
             │
             ▼
-[Carga de Nómina Oficial de Alumnos]
+[Carga de Nómina de Alumnos]
             │
             ▼
 [Marcación Rápida con 1 Toque: Presente | Ausente | Tardanza | Justificada]
@@ -204,7 +204,7 @@ graph TD
 * **Características del Módulo:**
   - **Cumplimiento de Estructura de Evaluación:** Desglose de actividades continuas (Actividad 1, Actividad 2) y Evaluación de Periodo / Examen.
   - **Cálculo Automático de Ponderación:** La aplicación calcula el promedio ponderado del periodo inmediatamente según la fórmula institucional.
-  - **Validación en Cliente y Servidor:** Imposibilidad de ingresar valores fuera de la escala oficial (0.00 a 10.00).
+  - **Validación en Cliente y Servidor:** Imposibilidad de ingresar valores fuera de la escala institucional (0.00 a 10.00).
   - **Indicadores Visuales de Aprobación:** Resaltado de notas superiores a 6.00 (Aprobado) vs inferiores a 6.00 (Riesgo pedagógico).
 * **Notas del Orador:**
   > *"El módulo de calificaciones elimina el error humano en los cálculos matemáticos de notas. El docente ingresa las evaluaciones individuales y el sistema calcula en tiempo real la nota final del trimestre. Al guardar, los datos quedan sincronizados y blindados, listos para emitir cuadros de honor o alertas de refuerzo escolar."*
@@ -266,7 +266,7 @@ sequenceDiagram
 * **Puntos Clave:**
   - **Separación de Responsabilidades (SoC):** Modelos, Vistas, Controladores y Capas de Servicio claramente aislados.
   - **Tolerancia a Fallos y Manejo de Red:** Timeouts controlados (5 segundos en llamadas móviles) para evitar bloqueos ante inestabilidad de red inalámbrica.
-  - **Estandarización Terminológica:** Vocabulario académico profesional conforme a directrices educativas oficiales (Año Lectivo, Grado y Sección, Asignatura, Régimen Trimestral).
+  - **Estandarización Terminológica:** Vocabulario académico profesional conforme a directrices educativas institucionales (Año Lectivo, Grado y Sección, Asignatura, Régimen Trimestral).
   - **Mantenibilidad y Código Limpio:** Estructuras modulares en Flutter (`screens`, `services`, `models`, `theme`) y Django (`apps`, `views`, `templates`).
 * **Notas del Orador:**
   > *"Hemos seguido rigurosos principios de ingeniería de software. Cada capa tiene una responsabilidad única, lo que facilita el mantenimiento y futuras expansiones, como la incorporación de un portal para padres de familia o la generación de boletas de calificaciones en PDF mediante microservicios."*
