@@ -40,22 +40,14 @@
           {{ p.nombre }}
         </span>
         {% if p.estado == 'Cerrado' %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+            Inactivo
+          </span>
+        {% else %}
           <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-            ✓ Cerrado
-          </span>
-        {% else %}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">
-            ⏳ En Curso
+            Activo
           </span>
         {% endif %}
-      </div>
-      <div class="mt-2 text-[11px] text-slate-500">
-        {% if p.estado == 'Cerrado' %}
-          <span class="text-emerald-700 font-semibold">Boletas Emitidas &bull; Listas</span>
-        {% else %}
-          <span class="text-amber-700 font-medium">Registro Docente Activo</span>
-        {% endif %}
-      </div>
     </a>
     {% endfor %}
   </div>
