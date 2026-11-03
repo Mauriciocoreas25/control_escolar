@@ -60,50 +60,6 @@
     {% endfor %}
   </div>
 
-  <!-- Status / Policy Banner for Selected Period -->
-  {% if periodo_cerrado %}
-  <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-base shrink-0">
-        ✓
-      </div>
-      <div>
-        <h4 class="text-xs font-bold text-emerald-950 uppercase tracking-wide">
-          {{ periodo_nombre }} Finalizado y Asentado &bull; Boletas de Calificaciones Listas
-        </h4>
-        <p class="text-xs text-emerald-800 mt-0.5">
-          Las notas fueron congeladas institucionalmente. Las boletas están listas para descargar individualmente o por lote para su entrega formal a padres de familia.
-        </p>
-      </div>
-    </div>
-    <div class="text-xs font-bold text-emerald-900 bg-white px-3 py-1.5 rounded-lg border border-emerald-300 shadow-xs shrink-0">
-      Disponibles para Entrega
-    </div>
-  </div>
-  {% else %}
-  <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold text-base shrink-0">
-        ⏳
-      </div>
-      <div>
-        <h4 class="text-xs font-bold text-amber-950 uppercase tracking-wide">
-          {{ periodo_nombre }} en Curso &bull; Registro Docente Activo
-        </h4>
-        <p class="text-xs text-amber-800 mt-0.5">
-          El cuerpo docente se encuentra registrando evaluaciones en la aplicación móvil y portal. Las boletas de calificaciones para entrega a padres de familia se habilitan automáticamente al <strong>Cerrar el Período</strong> desde el panel de Dirección General.
-        </p>
-      </div>
-    </div>
-    {% if rol_actual == 'Director' %}
-    <a href="{% url 'periodos_list' %}" class="px-4 py-2 text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 rounded-lg shadow-xs transition whitespace-nowrap shrink-0 flex items-center gap-1.5">
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-      <span>Ir a Cerrar Período</span>
-    </a>
-    {% endif %}
-  </div>
-  {% endif %}
-
   <!-- 1-Click Section Filter Pills -->
   <div class="space-y-2">
     <div class="flex items-center justify-between">
