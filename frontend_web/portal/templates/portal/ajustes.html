@@ -65,7 +65,7 @@
           <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Régimen de Evaluación</label>
           <select name="regimen" class="w-full text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none bg-white">
             <option value="Régimen Trimestral" {% if institucion.regimen == 'Régimen Trimestral' %}selected{% endif %}>Régimen Trimestral (3 Períodos)</option>
-            <option value="Régimen Bimestral" {% if institucion.regimen == 'Régimen Bimestral' %}selected{% endif %}>Régimen Bimestral (4 Períodos)</option>
+            <option value="4 Períodos de Evaluación" {% if institucion.regimen == '4 Períodos de Evaluación' or institucion.regimen == 'Régimen Bimestral' %}selected{% endif %}>4 Períodos de Evaluación (Educación Básica)</option>
             <option value="Régimen Semestral" {% if institucion.regimen == 'Régimen Semestral' %}selected{% endif %}>Régimen Semestral (2 Períodos)</option>
           </select>
         </div>

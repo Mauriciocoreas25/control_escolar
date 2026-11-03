@@ -18,7 +18,7 @@ class ConfiguracionInstitucion(models.Model):
     nombre = models.CharField(max_length=200, default="Complejo Educativo San Bartolomé")
     codigo_mined = models.CharField(max_length=50, default="10245")
     anio_lectivo = models.CharField(max_length=10, default="2026")
-    regimen = models.CharField(max_length=50, default="Régimen Trimestral")
+    regimen = models.CharField(max_length=50, default="4 Períodos de Evaluación")
     director_nombre = models.CharField(max_length=150, default="Lic. Roberto Mendoza")
     direccion = models.CharField(max_length=250, default="San Bartolomé Perulapía, Cuscatlán")
     telefono = models.CharField(max_length=50, default="2222-3333")
