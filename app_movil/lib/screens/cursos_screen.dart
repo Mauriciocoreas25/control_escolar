@@ -215,100 +215,49 @@ class _CursosScreenState extends State<CursosScreen> {
 
                         const SizedBox(height: 16),
 
-                        // Tarjeta Glassmorphic de Identidad del Docente
+                        // Tarjeta Limpia con el Nombre del Docente
                         GlassContainer(
-                          borderRadius: 20,
-                          blur: 18,
-                          padding: const EdgeInsets.all(18),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          borderRadius: 18,
+                          blur: 16,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          child: Row(
                             children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      gradient: AppTheme.buttonGradient,
-                                      borderRadius: BorderRadius.circular(14),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF2563EB).withOpacity(0.35),
-                                          blurRadius: 14,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  gradient: AppTheme.buttonGradient,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF2563EB).withOpacity(0.3),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
                                     ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      docenteNombre.length >= 2 ? docenteNombre.substring(0, 2).toUpperCase() : 'DOC',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.white,
-                                        letterSpacing: -0.5,
-                                      ),
-                                    ),
+                                  ],
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  docenteNombre.length >= 2 ? docenteNombre.substring(0, 2).toUpperCase() : 'DOC',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: -0.5,
                                   ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          docenteNombre,
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w800,
-                                            color: AppTheme.primaryDark,
-                                            letterSpacing: -0.3,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Row(
-                                          children: const [
-                                            Icon(Icons.verified_user_rounded, size: 12, color: AppTheme.statusPresente),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              'Docente Titular Autorizado',
-                                              style: TextStyle(
-                                                fontSize: 11.5,
-                                                color: Color(0xFF64748B),
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
-
-                              const SizedBox(height: 14),
-                              const Divider(height: 1, color: AppTheme.borderSubtle),
-                              const SizedBox(height: 12),
-
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  _buildGlassChip(
-                                    icon: Icons.auto_stories_rounded,
-                                    label: '${_asignaturas.length} Cursos',
-                                    gradient: AppTheme.accentGradient,
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  docenteNombre,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.primaryDark,
+                                    letterSpacing: -0.3,
                                   ),
-                                  _buildGlassChip(
-                                    icon: Icons.calendar_today_rounded,
-                                    label: 'Ciclo $anioActivo',
-                                    gradient: AppTheme.emeraldGradient,
-                                  ),
-                                  _buildGlassChip(
-                                    icon: Icons.timelapse_rounded,
-                                    label: regimen,
-                                    gradient: AppTheme.amberGradient,
-                                  ),
-                                ],
+                                ),
                               ),
                             ],
                           ),

@@ -24,15 +24,15 @@ class _GradosScreenState extends State<GradosScreen> {
   final Map<int, TextEditingController> _controllers = {};
 
   List<ActividadEvaluativa> _actividadesBD = [];
-  String _actividadSeleccionada = 'Examen Parcial (35%)';
+  String _actividadSeleccionada = 'Actividad 1: Examen Parcial';
   bool _isLoading = true;
   bool _isSaving = false;
   Map<String, dynamic>? _currentUser;
 
   final List<String> _actividadesEstandar = [
-    'Examen Parcial (35%)',
-    'Tareas y Guías (35%)',
-    'Laboratorio / Proyecto (30%)',
+    'Actividad 1: Examen Parcial',
+    'Actividad 2: Guías y Tareas',
+    'Actividad 3: Proyecto Aplicado',
     'Evaluación de Recuperación',
   ];
 
@@ -61,7 +61,7 @@ class _GradosScreenState extends State<GradosScreen> {
 
     final todasOpciones = _listaNombresActividades;
     if (!todasOpciones.contains(_actividadSeleccionada)) {
-      _actividadSeleccionada = todasOpciones.isNotEmpty ? todasOpciones.first : 'Examen Parcial (35%)';
+      _actividadSeleccionada = todasOpciones.isNotEmpty ? todasOpciones.first : 'Actividad 1: Examen Parcial';
     }
 
     final califs = await ApiService.getCalificaciones(
@@ -400,10 +400,11 @@ class _GradosScreenState extends State<GradosScreen> {
 
     setState(() => _isSaving = true);
     int guardados = 0;
+    int fallidos = 0;
     for (var e in _estudiantes) {
       final text = _controllers[e.id]?.text.trim() ?? '';
       if (text.isEmpty) continue;
-      final nota = double.tryParse(text);
+      final nota = double.tryParse(text.replaceAll(',', '.'));
       if (nota == null || nota < 0 || nota > 10) continue;
       final ok = await ApiService.registrarCalificacion(
         estudianteId: e.id,
@@ -412,18 +413,31 @@ class _GradosScreenState extends State<GradosScreen> {
         nota: nota,
         tipoEvaluacion: _actividadSeleccionada,
       );
-      if (ok) guardados++;
+      if (ok) {
+        guardados++;
+      } else {
+        fallidos++;
+      }
     }
 
     if (!mounted) return;
     setState(() => _isSaving = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: AppTheme.primaryNavy,
-        content: Text('¡Calificaciones guardadas exitosamente! ($guardados notas registradas)'),
-      ),
-    );
+    if (fallidos > 0 && guardados == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.redAccent,
+          content: Text('Error al guardar ($fallidos notas no enviadas). Verifique que el servidor (${ApiService.baseUrl}) esté activo.'),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppTheme.primaryNavy,
+          content: Text('¡Calificaciones guardadas exitosamente! ($guardados notas registradas)'),
+        ),
+      );
+    }
   }
 
   Future<void> _confirmLogout() async {
@@ -1010,7 +1024,7 @@ class _GradosScreenState extends State<GradosScreen> {
               enabled: periodoAbierto,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d{0,2}(\.\d{0,2})?')),
+                FilteringTextInputFormatter.allow(RegExp(r'^\d{0,2}([.,]\d{0,2})?')),
               ],
               textAlign: TextAlign.center,
               style: TextStyle(

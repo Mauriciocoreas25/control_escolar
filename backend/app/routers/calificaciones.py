@@ -1,11 +1,43 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from typing import List, Optional
 from app.core.database import get_db
 from app.models.calificacion import Calificacion
 from app.schemas.schemas import CalificacionCreate, CalificacionResponse
 
 router = APIRouter(prefix="/calificaciones", tags=["Calificaciones"])
+
+def _filter_by_tipo(query, tipo_evaluacion: str):
+    t_low = tipo_evaluacion.lower()
+    if "examen" in t_low or "parcial" in t_low or "actividad 1" in t_low:
+        return query.filter(
+            or_(
+                Calificacion.tipo_evaluacion == tipo_evaluacion,
+                Calificacion.tipo_evaluacion.ilike("%examen%"),
+                Calificacion.tipo_evaluacion.ilike("%parcial%"),
+                Calificacion.tipo_evaluacion.ilike("%actividad 1%")
+            )
+        )
+    elif "tarea" in t_low or "guía" in t_low or "guia" in t_low or "actividad 2" in t_low:
+        return query.filter(
+            or_(
+                Calificacion.tipo_evaluacion == tipo_evaluacion,
+                Calificacion.tipo_evaluacion.ilike("%tarea%"),
+                Calificacion.tipo_evaluacion.ilike("%gu_a%"),
+                Calificacion.tipo_evaluacion.ilike("%actividad 2%")
+            )
+        )
+    elif "proyecto" in t_low or "laboratorio" in t_low or "actividad 3" in t_low:
+        return query.filter(
+            or_(
+                Calificacion.tipo_evaluacion == tipo_evaluacion,
+                Calificacion.tipo_evaluacion.ilike("%proyecto%"),
+                Calificacion.tipo_evaluacion.ilike("%laboratorio%"),
+                Calificacion.tipo_evaluacion.ilike("%actividad 3%")
+            )
+        )
+    return query.filter(Calificacion.tipo_evaluacion == tipo_evaluacion)
 
 @router.get("/", response_model=List[CalificacionResponse])
 def listar_calificaciones(
@@ -23,21 +55,23 @@ def listar_calificaciones(
     if estudiante_id is not None:
         query = query.filter(Calificacion.estudiante_id == estudiante_id)
     if tipo_evaluacion:
-        query = query.filter(Calificacion.tipo_evaluacion == tipo_evaluacion)
+        query = _filter_by_tipo(query, tipo_evaluacion)
     return query.all()
 
 @router.post("/", response_model=CalificacionResponse)
 def registrar_calificacion(calificacion_data: CalificacionCreate, db: Session = Depends(get_db)):
-    # Buscar si ya existe una calificación para el estudiante, materia, periodo y actividad
+    # Buscar si ya existe una calificación para el estudiante, materia y periodo
     query = db.query(Calificacion).filter(
         Calificacion.estudiante_id == calificacion_data.estudiante_id,
         Calificacion.asignatura_id == calificacion_data.asignatura_id,
         Calificacion.periodo_id == calificacion_data.periodo_id
     )
     if calificacion_data.tipo_evaluacion:
-        query = query.filter(Calificacion.tipo_evaluacion == calificacion_data.tipo_evaluacion)
+        query_tipo = _filter_by_tipo(query, calificacion_data.tipo_evaluacion)
+        existente = query_tipo.first()
+    else:
+        existente = query.first()
 
-    existente = query.first()
     if existente:
         existente.nota = calificacion_data.nota
         if calificacion_data.tipo_evaluacion:

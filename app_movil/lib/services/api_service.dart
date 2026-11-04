@@ -6,8 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 
 class ApiService {
+  static const String localEmulatorUrl = 'http://10.0.2.2:8001';
+  static const String azureServerUrl = 'http://130.131.113.202:8001';
   static const String defaultServerUrl = 'http://130.131.113.202:8001';
   static String? _customBaseUrl;
+
   static Future<void> init() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -16,7 +19,7 @@ class ApiService {
         _customBaseUrl = saved.trim();
       }
     } catch (e) {
-      debugPrint('Error al inicializar ApiService: $e');
+      debugPrint('Error al inicializar ApiService: ');
     }
   }
 
@@ -25,10 +28,9 @@ class ApiService {
       return _customBaseUrl!;
     }
     if (kIsWeb) {
-      return defaultServerUrl;
+      return 'http://127.0.0.1:8001';
     }
     if (Platform.isAndroid) {
-      // 10.0.2.2 es el alias de localhost para el emulador Android
       return defaultServerUrl;
     }
     return defaultServerUrl;

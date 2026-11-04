@@ -602,13 +602,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget _buildPerfilScreen() {
     final nombre = _currentUser?['nombre'] ?? 'Docente Autorizado';
     final correo = _currentUser?['correo'] ?? 'docente@santasofia.edu.sv';
-    final rol = _currentUser?['rol'] ?? 'Docente';
+    final rol = _currentUser?['rol'] ?? 'Docente Titular';
     final especialidad = _profesorPerfil?['especialidad'] ?? 'Docencia General';
-    final telefono = _profesorPerfil?['telefono'] ?? '7890-1234';
-    final instNombre = _institucion?.nombre ?? 'Complejo Educativo Santa Sofía';
-    final codigoMined = _institucion?.codigoMined ?? '10234';
-    final anioLectivo = _institucion?.anioLectivo ?? '2026';
-    final regimen = _institucion?.regimen ?? '4 Períodos Anuales';
+    final telefono = _profesorPerfil?['telefono'] ?? 'No registrado';
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -623,7 +619,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Mi Perfil Docente',
+                      'Mi Perfil',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -641,7 +637,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
                 const SizedBox(height: 18),
 
-                // Tarjeta Glassmorphic de Identidad
+                // Tarjeta de Identidad Personal
                 GlassContainer(
                   borderRadius: 24,
                   blur: 20,
@@ -663,7 +659,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                           ],
                         ),
                         alignment: Alignment.center,
-                        child: const Icon(Icons.person_rounded, size: 44, color: Colors.white),
+                        child: Text(
+                          nombre.length >= 2 ? nombre.substring(0, 2).toUpperCase() : 'DOC',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 14),
                       Text(
@@ -682,48 +686,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                         style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEFF6FF),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: const Color(0xFFBFDBFE)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFBFDBFE)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.badge_rounded, size: 14, color: Color(0xFF2563EB)),
+                            const SizedBox(width: 5),
+                            Text(
+                              rol,
+                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF1D4ED8)),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.badge_rounded, size: 14, color: Color(0xFF2563EB)),
-                                const SizedBox(width: 5),
-                                Text(
-                                  rol,
-                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF1D4ED8)),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                            decoration: BoxDecoration(
-                              gradient: AppTheme.emeraldGradient,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF059669).withOpacity(0.2),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: const Text(
-                              '• Activo en Sistema',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -731,7 +711,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
                 const SizedBox(height: 18),
 
-                // Tarjeta de Datos del Docente e Institución
+                // Tarjeta de Información Personal y Profesional del Docente
                 GlassContainer(
                   borderRadius: 20,
                   padding: const EdgeInsets.all(20),
@@ -740,10 +720,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     children: [
                       Row(
                         children: const [
-                          Icon(Icons.badge_outlined, size: 18, color: AppTheme.primaryNavy),
+                          Icon(Icons.person_outline_rounded, size: 18, color: AppTheme.primaryNavy),
                           SizedBox(width: 8),
                           Text(
-                            'INFORMACIÓN DOCENTE E INSTITUCIONAL',
+                            'INFORMACIÓN DEL DOCENTE',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
@@ -755,38 +735,31 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                       ),
                       const SizedBox(height: 14),
                       _buildProfileInfoRow(
-                        icon: Icons.school_rounded,
+                        icon: Icons.person_rounded,
                         iconColor: const Color(0xFF2563EB),
-                        title: 'Centro Educativo',
-                        value: instNombre,
+                        title: 'Nombre Completo',
+                        value: nombre,
+                      ),
+                      const Divider(height: 12, color: Color(0xFFE2E8F0)),
+                      _buildProfileInfoRow(
+                        icon: Icons.alternate_email_rounded,
+                        iconColor: const Color(0xFF0284C7),
+                        title: 'Correo Electrónico',
+                        value: correo,
                       ),
                       const Divider(height: 12, color: Color(0xFFE2E8F0)),
                       _buildProfileInfoRow(
                         icon: Icons.menu_book_rounded,
                         iconColor: const Color(0xFF7C3AED),
-                        title: 'Especialidad / Asignaturas',
+                        title: 'Especialidad Académica',
                         value: especialidad,
                       ),
                       const Divider(height: 12, color: Color(0xFFE2E8F0)),
                       _buildProfileInfoRow(
                         icon: Icons.phone_android_rounded,
                         iconColor: const Color(0xFF059669),
-                        title: 'Teléfono Institucional',
+                        title: 'Teléfono de Contacto',
                         value: telefono,
-                      ),
-                      const Divider(height: 12, color: Color(0xFFE2E8F0)),
-                      _buildProfileInfoRow(
-                        icon: Icons.account_balance_rounded,
-                        iconColor: const Color(0xFFEA580C),
-                        title: 'Código de Infraestructura MINED',
-                        value: codigoMined,
-                      ),
-                      const Divider(height: 12, color: Color(0xFFE2E8F0)),
-                      _buildProfileInfoRow(
-                        icon: Icons.calendar_today_rounded,
-                        iconColor: const Color(0xFF0284C7),
-                        title: 'Año Lectivo y Régimen',
-                        value: ' • ',
                       ),
                     ],
                   ),
@@ -921,7 +894,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                           const Icon(Icons.cloud_done_outlined, size: 13, color: Color(0xFF94A3B8)),
                           const SizedBox(width: 5),
                           Text(
-                            'Servidor: ',
+                            'Servidor: ${ApiService.baseUrl}',
                             style: const TextStyle(
                               fontSize: 10.5,
                               fontFamily: 'monospace',
@@ -947,46 +920,104 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final controller = TextEditingController(text: ApiService.baseUrl);
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('Conexión del Sistema', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Dirección IP/Host del Servidor:',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.dns_rounded, color: AppTheme.primaryNavy, size: 22),
+              SizedBox(width: 10),
+              Text('Servidor Escolar', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Seleccione el entorno de conexión o ingrese la dirección:',
+                  style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          side: const BorderSide(color: Color(0xFF2563EB)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            controller.text = ApiService.localEmulatorUrl;
+                          });
+                        },
+                        child: const Text('💻 Emulador Local', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          side: const BorderSide(color: Color(0xFF059669)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            controller.text = ApiService.azureServerUrl;
+                          });
+                        },
+                        child: const Text('☁️ Nube Azure', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF059669))),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    labelText: 'URL del Servidor API',
+                    prefixIcon: const Icon(Icons.link_rounded, size: 20),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    isDense: true,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                isDense: true,
-                hintText: 'http://10.0.2.2:8001',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryNavy,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
               ),
+              onPressed: () async {
+                final url = controller.text.trim();
+                await ApiService.setBaseUrl(url);
+                if (!mounted) return;
+                Navigator.pop(ctx);
+                setState(() {});
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: const Color(0xFF059669),
+                    content: Text('Servidor actualizado a: $url'),
+                  ),
+                );
+              },
+              child: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryNavy,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              ApiService.setBaseUrl(controller.text.trim());
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Servidor actualizado a: ${controller.text.trim()}')),
-              );
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
       ),
     );
   }
