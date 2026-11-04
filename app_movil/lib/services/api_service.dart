@@ -6,24 +6,42 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 
 class ApiService {
+  static const String defaultServerUrl = 'http://130.131.113.202:8001';
   static String? _customBaseUrl;
+  static Future<void> init() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('custom_server_url');
+      if (saved != null && saved.trim().isNotEmpty) {
+        _customBaseUrl = saved.trim();
+      }
+    } catch (e) {
+      debugPrint('Error al inicializar ApiService: $e');
+    }
+  }
 
   static String get baseUrl {
     if (_customBaseUrl != null && _customBaseUrl!.isNotEmpty) {
       return _customBaseUrl!;
     }
     if (kIsWeb) {
-      return 'http://127.0.0.1:8001';
+      return defaultServerUrl;
     }
     if (Platform.isAndroid) {
       // 10.0.2.2 es el alias de localhost para el emulador Android
-      return 'http://10.0.2.2:8001';
+      return defaultServerUrl;
     }
-    return 'http://127.0.0.1:8001';
+    return defaultServerUrl;
   }
 
-  static void setBaseUrl(String url) {
-    _customBaseUrl = url;
+  static Future<void> setBaseUrl(String url) async {
+    _customBaseUrl = url.trim();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('custom_server_url', _customBaseUrl!);
+    } catch (e) {
+      debugPrint('Error al guardar custom_server_url: $e');
+    }
   }
 
   // ==================== INSTITUCIÓN ====================

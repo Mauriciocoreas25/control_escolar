@@ -8,6 +8,7 @@ import 'theme/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es', null);
+  await ApiService.init();
   final user = await ApiService.getCurrentUser();
   runApp(MyApp(isLoggedIn: user != null));
 }
