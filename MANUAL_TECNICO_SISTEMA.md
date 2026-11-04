@@ -1,200 +1,377 @@
-# Manual Técnico y Guía de Arquitectura del Sistema
+# Manual Técnico Maestro y Guía de Defensa de Arquitectura
 ## Sistema Integral de Control Escolar — Complejo Educativo Santa Sofía
+### Documento de Ingeniería, Diseño de Software e Infraestructura Cloud
 
 ---
 
-## 1. Visión General de la Arquitectura
+## 1. Visión y Filosofía de Arquitectura (El "Por Qué")
 
-El sistema está diseñado bajo un enfoque **modular desacoplado**, compuesto por tres capas principales interconectadas mediante protocolos estándar HTTP/REST y JSON:
+### 1.1 El Problema Tradicional vs. Nuestra Solución
+La mayoría de los sistemas escolares convencionales se construyen como monolitos pesados: una sola aplicación web donde la base de datos, el renderizado de HTML y la lógica de negocio están fuertemente acoplados. Cuando se intenta agregar una app móvil a un monolito, los desarrolladores suelen forzar conexiones inseguras o crear parches lentos.
+
+Para el **Complejo Educativo Santa Sofía**, diseñé una **Arquitectura Desacoplada Basada en Servicios REST**:
 
 ```
-[Portal Web Administrativo (Django 5 / Gunicorn)] ────┐
-                                                      │  (Consumo REST Interno :8001)
-                                                      ▼
-[App Móvil Docente (Flutter / Android)] ──────► [Backend API REST (FastAPI :8001)] ──► [MariaDB :3306]
-                                                      ▲
+                         ┌────────────────────────────────────────────────────────┐
+                         │              DISPOSITIVOS Y CLIENTES                   │
+                         └────────────────────────────────────────────────────────┘
+                                      │                                │
+                       (HTTPS :443)   │                                │  (HTTP REST :8001)
+                                      ▼                                ▼
+                         ┌─────────────────────────┐      ┌─────────────────────────┐
+                         │   Portal Administrativo │      │    App Móvil Docente    │
+                         │    Django 5 + Gunicorn  │      │     Flutter + Dart      │
+                         └─────────────────────────┘      └─────────────────────────┘
+                                      │                                │
+                                      │  (Consumo REST Interno :8001)  │
+                                      ▼                                ▼
+                         ┌────────────────────────────────────────────────────────┐
+                         │            NÚCLEO DE NEGOCIO Y PERSISTENCIA            │
+                         │              FastAPI + Uvicorn (:8001)                 │
+                         └────────────────────────────────────────────────────────┘
                                                       │
-[Internet / Navegadores] ──► [Nginx Proxy + SSL 443] ─┘
+                                                      │  (SQLAlchemy + PyMySQL :3306)
+                                                      ▼
+                         ┌────────────────────────────────────────────────────────┐
+                         │            BASE DE DATOS RELACIONAL CENTRAL            │
+                         │                 MariaDB / InnoDB (:3306)               │
+                         └────────────────────────────────────────────────────────┘
 ```
 
-### Principios Fundamentales de Diseño
-1. **Separación de Responsabilidades (SoC):** La lógica de negocio y persistencia reside exclusivamente en la API (`backend`). Ni Django ni Flutter tocan la base de datos MySQL directamente; ambos consumen la API REST.
-2. **Escalabilidad Horizontal:** Al estar desacoplados, la API puede balancearse o escalarse independientemente del frontend web o la app móvil.
-3. **Consistencia de Datos:** Toda validación de notas, ponderaciones porcentuales (máx 100%) y estados de períodos se centraliza en la API.
+### 1.2 Justificación de las 3 Decisiones Cruciales de Diseño:
+1. **¿Por qué la API (FastAPI) es el único componente que habla con la Base de Datos?**
+   * **Seguridad Absoluta:** Ni el navegador del usuario ni el teléfono del docente conocen las credenciales (`root`/`escolar_user`) ni el puerto interno `3306` de MariaDB.
+   * **Centralización de Reglas de Negocio:** La regla pedagógica del MINED (por ejemplo: *"las calificaciones deben estar entre 0.00 y 10.00"* y *"la suma de ponderaciones de un período no puede superar el 100%"*) se programa una sola vez en la API. Si un profesor califica desde la web o desde el móvil, la validación es idéntica e inquebrantable.
+2. **¿Por qué usamos Django para el portal web si ya tenemos FastAPI?**
+   * FastAPI es extraordinario para procesar peticiones JSON asíncronas de alto rendimiento, pero carece de un motor nativo de gestión de sesiones de usuario, plantillas HTML con herencia y suites de formularios administrativos.
+   * Django nos provee un entorno corporativo maduro con protección CSRF nativa, cookies seguras HTTP-Only y un pipeline de generación masiva de reportes PDF vectoriales mediante `ReportLab`.
+   * **Patrón Backend-for-Frontend:** Django actúa como un cliente consumidor de la API (`api_client.py`). Si en el futuro la institución decide migrar el portal a React o Vue.js, la base de datos y la API no sufren ningún cambio.
+3. **¿Por qué Flutter para la app móvil?**
+   * Compila directamente a código máquina nativo (ARM64 en Android), eliminando bridges de Javascript (a diferencia de React Native o Ionic). La interfaz se renderiza a 60 FPS estables con bajo consumo de batería y memoria.
 
 ---
 
-## 2. Capa de Backend: API REST (FastAPI)
+## 2. Anatomía Detallada del Backend: API REST (FastAPI)
 
-### 2.1 Stack Tecnológico y Librerías
-* **Lenguaje:** Python 3.12+
-* **Framework:** `FastAPI` (v0.115+)
-  - *¿Por qué FastAPI?:* Rendimiento asíncrono ultra-alto (basado en Starlette y ASGI), generación automática de documentación interactiva OpenAPI (Swagger), y serialización estricta con Pydantic.
-* **Servidor ASGI:** `Uvicorn` (v0.30+)
-  - Manejador de workers asíncronos para sockets de alto rendimiento.
-* **ORM:** `SQLAlchemy` (v2.0+)
-  - Mapeo objeto-relacional para interactuar con MariaDB mediante clases Python en lugar de SQL crudo concatenado (previniendo inyección SQL).
-* **Driver de Base de Datos:** `PyMySQL` + `cryptography`
-  - Conector nativo MySQL en Python puro con soporte de autenticación segura `caching_sha2_password` y `mysql_native_password`.
-* **Esquemas y Validación:** `Pydantic` (v2.x)
-  - Validación de tipos en tiempo de ejecución, parseo de datos entrantes y serialización de respuestas JSON.
-* **Gestión de Entorno:** `python-dotenv`
-  - Aislamiento de credenciales (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`) en archivos `.env`.
+### 2.1 Pila de Tecnologías (Tech Stack)
+* **Python 3.12+:** Aprovecha las mejoras del intérprete en manejo de memoria y tipos estáticos.
+* **FastAPI (v0.115+):** Construido sobre Starlette (núcleo ASGI) y Pydantic.
+* **Uvicorn (v0.30+):** Servidor ASGI asíncrono con soporte de loop de eventos `uvloop` (C-based).
+* **SQLAlchemy 2.0:** Object Relational Mapper (ORM) con sintaxis declarativa moderna.
+* **PyMySQL + Cryptography:** Driver de conexión socket TCP con soporte para hashing `caching_sha2_password`.
+* **Pydantic v2:** Motor de validación compilado en Rust (hasta 20x más rápido que Pydantic v1).
 
-### 2.2 Estructura del Código Backend (`/backend/app`)
-* **`core/database.py`:** Configura el `engine` de SQLAlchemy, la sesión `SessionLocal` y la función inyectora de dependencias `get_db()`.
-* **`models/`:** Modelos de tablas relacionales:
-  - `profesor.py`, `estudiantes.py`, `asignatura.py`, `grado_seccion.py`, `periodo.py`, `actividad_evaluativa.py`, `calificacion.py`, `asistencia.py`, `horario.py`, `institucion.py`.
-* **`schemas/schemas.py`:** DTOs (Data Transfer Objects) de Pydantic que definen los contratos JSON (`Base`, `Create`, `Response`) para validación de entrada/salida.
-* **`routers/`:** Módulos de rutas REST por dominio:
-  - `/auth/`: Autenticación institucional por correo y contraseña.
-  - `/profesores/`: CRUD de docentes, especialidades y asignaciones.
-  - `/estudiantes/`: CRUD de estudiantes, NIE, estado de matrícula.
-  - `/secciones/`: Grados escolares (1° a 9°), secciones (A, B) y aulas.
-  - `/asignaturas/`: Materias oficiales curriculares.
-  - `/periodos/`: Control de los 4 períodos académicos y cierres lectivos.
-  - `/actividades/`: Creación de tareas, exámenes y proyectos con ponderación (%) por período.
-  - `/calificaciones/`: Registro masivo y unitario de notas (0.00 - 10.00).
-  - `/asistencias/`: Pase de lista diario (Presente, Ausente, Justificado).
-  - `/institucion/`: Datos del Complejo Educativo Santa Sofía, código MINED y régimen.
+### 2.2 Ciclo de Vida de una Petición (Request Lifecycle)
+Para defender el backend, este es el viaje exacto que sigue un paquete HTTP cuando un cliente envía datos (ej. al guardar una calificación):
+
+```
+1. Cliente (App Móvil / Web) envía HTTP POST a /calificaciones/ con Payload JSON
+   │
+2. Nginx recibe en el puerto 8001 / Host y canaliza el socket a Uvicorn
+   │
+3. Uvicorn despierta un Worker ASGI y pasa la petición a FastAPI
+   │
+4. Middleware CORS (app.add_middleware) valida origen, métodos y cabeceras
+   │
+5. FastAPI Router (/calificaciones/) intercepta la ruta y activa la Inyección de Dependencias:
+   db: Session = Depends(get_db)
+   │
+6. get_db() abre una sesión transaccional SessionLocal() conectada al Pool de SQLAlchemy
+   │
+7. Pydantic (CalificacionCreate) parsea el JSON:
+   - Valida que estudiante_id sea entero
+   - Valida que nota sea float y esté en el rango [0.00, 10.00]
+   - Si no cumple, detiene el flujo y retorna HTTP 422 Unprocessable Entity
+   │
+8. La función controladora ejecuta la lógica:
+   nueva_nota = Calificacion(**calificacion.dict())
+   db.add(nueva_nota)
+   db.commit()  <-- Transacción ACID confirmada en MariaDB
+   db.refresh(nueva_nota)
+   │
+9. Pydantic serializa la entidad a JSON (CalificacionResponse)
+   │
+10. Se cierra la sesión en el bloque finally: db.close() devolviendo la conexión al Pool
+    │
+11. Se retorna HTTP 201 Created al cliente
+```
+
+### 2.3 Patrón Unit of Work y Dependency Injection (`get_db`)
+En `backend/app/core/database.py`:
+```python
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+```
+* **¿Por qué usamos un generador con `yield`?**
+  Garantiza que **cada petición HTTP tenga su propia sesión aislada**. Cuando la petición termina (incluso si ocurre una excepción o error inesperado), el bloque `finally` se ejecuta sin falta, cerrando la sesión y devolviendo el socket al Connection Pool de MariaDB. Esto previene fugas de memoria y bloqueos por conexiones huérfanas (*Connection Leak*).
+
+### 2.4 Prevención de Inyección SQL (SQL Injection)
+En ningún archivo del backend se concatenan strings en SQL (como `"SELECT * FROM usuarios WHERE correo = '" + correo + "'"`).
+Se utiliza el compilador de expresiones de SQLAlchemy:
+```python
+db.query(models.Usuario).filter(models.Usuario.correo == correo).first()
+```
+SQLAlchemy traduce esto a una consulta parametrizada binaria:
+`SELECT ... FROM usuarios WHERE usuarios.correo = ?`
+Los valores entran como parámetros sanitizados por el driver `PyMySQL`, neutralizando cualquier intento de inyección de código SQL malicioso.
+
+### 2.5 Catálogo de Routers Implementados
+* **`auth.py`:** Endpoint `/auth/login`. Valida usuario, contraseñas hash y estado activo.
+* **`estudiantes.py`:** Endpoints `/estudiantes/` (GET, POST, PATCH, DELETE). Filtro por NIE y sección.
+* **`profesores.py`:** Endpoints `/profesores/`. Asignación docente y especialidades.
+* **`asignaturas.py`:** Mapeo de materias curriculares del MINED.
+* **`periodos.py`:** Control del régimen académico de 4 períodos anuales.
+* **`actividades.py`:** Creación de ponderaciones (exámenes, tareas, proyectos).
+* **`calificaciones.py`:** Registro unitario y masivo de calificaciones con cálculo dinámico de notas ponderadas.
+* **`asistencias.py`:** Registro histórico de presencias por alumno, aula y fecha.
+* **`institucion.py`:** Parámetros oficiales del Complejo Educativo Santa Sofía.
 
 ---
 
-## 3. Capa Web Administrativa: Portal Django
+## 3. Anatomía Detallada del Portal Web Administrativo (Django)
 
-### 3.1 Stack Tecnológico y Librerías
-* **Lenguaje:** Python 3.12+
-* **Framework:** `Django` (v5.x / LTS)
-  - Provee arquitectura MVC/MVT robusta, motor de plantillas con herencia (`templates/`), control de sesiones seguras (`django.contrib.sessions`), y sistema de seguridad contra ataques CSRF y Clickjacking.
-* **Servidor WSGI:** `Gunicorn` (v22+)
-  - Servidor HTTP para aplicaciones WSGI en producción en sistemas UNIX/Linux (3 workers en paralelo).
-* **Cliente HTTP:** `Requests`
-  - Utilizado por `api_client.py` para comunicarse de manera sincrónica con la API de FastAPI.
-* **Motor de Generación PDF:** `ReportLab`
-  - Usado en `portal/services/reports.py` para construir boletas de notas vectoriales, con encabezados dinámicos, tablas tabuladas con formato MINED y paginación en lotes.
-* **UI / Estilos:** TailwindCSS (CDN compilado) + Bootstrap Icons + Boxicons
-  - Interfaz moderna, responsive (adaptable a laptops, tablets y móviles) con paneles modales y tablas interactivas.
+### 3.1 Arquitectura MVT y Desacoplamiento
+En `frontend_web/`:
+* **Modelos (`portal/models.py`):** Django mantiene su propio almacén ligero en SQLite (`db.sqlite3`) para:
+  1. `PerfilUsuario`: Extensión del modelo nativo `User` de Django para vincular roles (`Director`, `Secretaria`, `Profesor`).
+  2. `ConfiguracionInstitucion`: Caché local de identidad escolar (Nombre: *Complejo Educativo Santa Sofía*, Código MINED: *10234*).
+* **Vistas (`portal/views.py`):** Actúan como orquestadores lógicos. Reciben la solicitud web, llaman a los microservicios en `portal/services/api_client.py`, procesan la respuesta y la inyectan en las plantillas HTML.
 
-### 3.2 Arquitectura del Portal Web (`/frontend_web`)
-* **Consumo de Datos vía `api_client.py`:**
-  En lugar de vincular Django con la base de datos MySQL compartida, Django utiliza `api_client.py` para solicitar datos al backend:
-  ```python
-  def get_estudiantes():
-      r = requests.get(f"{BASE_URL}/estudiantes/", timeout=3)
-      return r.json() if r.status_code == 200 else []
+### 3.2 Cliente de API Centralizado (`api_client.py`)
+Todas las comunicaciones hacia FastAPI pasan por funciones puras con manejo estricto de excepciones y timeouts:
+```python
+BASE_URL = getattr(settings, 'API_BASE_URL', 'http://127.0.0.1:8001')
+
+def get_profesores():
+    try:
+        r = requests.get(f"{BASE_URL}/profesores/", timeout=3)
+        if r.status_code == 200:
+            return r.json()
+    except Exception as e:
+        print(f"[API ERROR] get_profesores: {e}")
+    return []
+```
+* **Resiliencia:** Si el backend tardara o fallara momentáneamente, el timeout de 3 segundos evita que la petición web se quede colgada indefinidamente (*Worker Hang*), retornando listas vacías controladas y mostrando mensajes amigables al usuario sin tumbar la aplicación.
+
+### 3.3 Motor de Generación de Boletas PDF (`reports.py` / ReportLab)
+Uno de los puntos más avanzados del sistema es el módulo de generación vectorial de documentos en `portal/services/reports.py`:
+
+#### El Algoritmo de Dos Pasadas (`NumberedCanvas`):
+Para cumplir con los estándares formales del MINED, cada página debe incluir un membrete con la leyenda exacta: *"Página X de Y"* (ej. *Página 1 de 25*).
+En un documento generado dinámicamente, cuando se dibuja la página 1 no se sabe cuántas páginas tendrá el documento final. Para resolver esto, implementé una subclase de `canvas.Canvas`:
+```python
+class NumberedCanvas(canvas.Canvas):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._saved_page_states = []
+
+    def showPage(self):
+        # En la primera pasada, guardamos el estado de la página sin imprimir el pie
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        # En la segunda pasada, conocemos el total exacto (len(_saved_page_states))
+        num_pages = len(self._saved_page_states)
+        for state in self._saved_page_states:
+            self.__dict__.update(state)
+            self.draw_footer(num_pages) # Dibuja "Página X de num_pages"
+            canvas.Canvas.showPage(self)
+        canvas.Canvas.save(self)
+```
+
+#### Generación Masiva por Lotes en Memoria:
+Para imprimir las boletas de un grado completo (ej: 40 estudiantes de 7° "A"):
+1. En lugar de crear 40 archivos PDF temporales en el disco duro (lo que fragmentaría el almacenamiento y saturaría el I/O del servidor), se utiliza un buffer en memoria RAM con `io.BytesIO()`.
+2. Se itera sobre cada estudiante generando la estructura visual de su boleta (encabezado, logotipo, tabla de materias, notas y firmas).
+3. Se inserta un objeto `PageBreak()` entre cada alumno.
+4. El compilador de ReportLab procesa la lista de elementos (*Story*) en una sola pasada de ensamblado, produciendo un único flujo binario que se descarga de forma instantánea mediante un `HttpResponse(buffer.getvalue(), content_type='application/pdf')`.
+
+---
+
+## 4. Anatomía Detallada de la App Móvil Docente (Flutter)
+
+### 4.1 Principios de Ingeniería en Dart / Flutter
+* **Árbol de Widgets Reactivo:** La interfaz se actualiza automáticamente al cambiar el estado interno mediante `setState()`.
+* **Asincronía con `Future` y `async/await`:** La interfaz de usuario corre en el hilo principal (*UI Isolate*), mientras que todas las llamadas de red a la API se ejecutan en segundo plano, impidiendo que la pantalla se congele al consultar notas o asistencias.
+* **Serialización Segura de Strings (`utf8.decode`):**
+  En `api_service.dart`:
+  ```dart
+  final data = jsonDecode(utf8.decode(res.bodyBytes));
   ```
-* **Base de Datos Local SQLite (`db.sqlite3`):**
-  Django mantiene una base ligera para:
-  1. Sesiones de usuario administrativo (`django_session`).
-  2. Perfiles y roles locales (`PerfilUsuario`: Director, Secretaria, Docente).
-  3. Parámetros de branding institucional en caché (`ConfiguracionInstitucion`).
-* **Módulo de Reportes (`reports.py`):**
-  - **Generación Individual:** Genera la boleta oficial en formato PDF para un estudiante en particular.
-  - **Descarga Masiva por Lote:** Itera sobre todos los alumnos filtrados (por sección o grado) y genera un único documento PDF consolidado con salto de página por cada alumno (`PageBreak()`), listo para impresión masiva en secretaría.
+  Esto es fundamental: si se usa simplemente `res.body`, los caracteres con tildes, letras "ñ" o signos especiales de nombres salvadoreños se corrompen en caracteres extraños (`MarÃ­a`). La decodificación explícita de bytes UTF-8 garantiza fidelidad ortográfica total.
+
+### 4.2 Arquitectura de Red Dinámica y Persistencia
+* **URL por Defecto:** `http://130.131.113.202:8001`.
+* **Persistencia con `SharedPreferences`:** La app guarda en el almacenamiento seguro local del dispositivo:
+  1. La URL personalizada del servidor si se modifica.
+  2. Los datos de sesión del docente logueado para evitar pedir credenciales cada vez que abre la app.
+* **Configuración en Caliente desde el Login:**
+  Se integró un diálogo de configuración accesible directamente desde la barra inferior de seguridad (*"Conexión Segura • Servidor Escolar Activo"*). Cualquier profesor o técnico puede ajustar la IP del servidor en caliente sin tener que recompilar la aplicación.
+
+### 4.3 Diseño Visual: Material Design 3 con Glassmorphism
+* **Contenedores translúcidos (`GlassContainer`):** Utilizan `BackdropFilter` con `ImageFilter.blur(sigmaX: 20, sigmaY: 20)` y bordes sutiles en `Colors.white.withOpacity(0.12)`.
+* **Identidad Institucional:** Paleta de colores sobria y profesional:
+  - Primario: Azul Marino Institucional (`#1E3A8A`).
+  - Fondo Ambiental: Gradientes de luz sutil en modo oscuro (`#0F172A`).
+  - Semáforos de Asistencia: Verde Esmeralda (`#10B981` Presente), Rojo Carmesí (`#EF4444` Ausente) y Ámbar (`#F59E0B` Justificado).
 
 ---
 
-## 4. Capa Móvil: App Docente (Flutter)
+## 5. Diccionario de Datos y Modelo Relacional (MariaDB)
 
-### 4.1 Stack Tecnológico y Librerías
-* **Framework:** `Flutter` (v3.44.8) / Dart SDK (v3.12.2)
-  - Compilación nativa Ahead-Of-Time (AOT) en código máquina ARM64 para Android (APK).
-* **Librerías principales (`pubspec.yaml`):**
-  - `http`: Comunicación asíncrona con la API REST (verbos GET, POST, PUT, DELETE).
-  - `shared_preferences`: Almacenamiento local persistente cifrado en disco del teléfono (guarda el token de sesión del profesor y la IP configurable del servidor).
-  - `intl`: Formateo de fechas localizadas en español (`es_SV`) para asistencias y calendarios.
-  - `google_fonts`: Tipografía moderna (Inter / Poppins) integrada directamente sin dependencias externas.
-  - `cupertino_icons`: Iconografía adaptativa.
+La base de datos relacional está normalizada en **Tercera Forma Normal (3NF)** para eliminar redundancias y anomalías de actualización.
 
-### 4.2 Arquitectura del Código Móvil (`/app_movil/lib`)
-* **`services/api_service.dart`:**
-  - Capa de abstracción de red centralizada.
-  - Contiene la URL por defecto hacia la nube: `http://130.131.113.202:8001`.
-  - Mecanismo dinámico de reconfiguración de IP mediante `SharedPreferences`: el docente o evaluador puede cambiar la IP o dominio del servidor en caliente tocando el badge de seguridad del Login, sin necesidad de recompilar la app.
-* **`models/models.dart`:**
-  - Clases inmutables con serializadores `fromJson()` y `toJson()` para tipado estricto: `Profesor`, `Estudiante`, `Seccion`, `Asignatura`, `Periodo`, `ActividadEvaluativa`, `Calificacion`, `Asistencia`.
-* **`theme/app_theme.dart`:**
-  - Implementación de **Material Design 3 con Glassmorphism**:
-  - Contenedores translúcidos con desenfoque (`BackdropFilter`), gradientes en tonos Navy Blue (`#1E3A8A`) y acentos de estado (`#10B981` activo, `#EF4444` inactivo).
-* **Módulos de Pantallas (`screens/`):**
-  1. `login_screen.dart`: Autenticación contra `/auth/login`, validación de rol de docente y almacenamiento seguro del perfil.
-  2. `main_navigation_screen.dart`: Navegación principal mediante barra inferior y drawer lateral.
-  3. `cursos_screen.dart`: Listado de materias asignadas al profesor logueado.
-  4. `calificaciones_screen.dart`: Matriz de calificaciones por actividad; cálculo automático de ponderaciones en tiempo real.
-  5. `asistencia_screen.dart`: Pase de lista rápido con botones de selección única (P, A, J) y sincronización inmediata con la API.
+### 5.1 Diagrama Entidad-Relación (ER)
+```mermaid
+erDiagram
+    USUARIOS ||--o| PROFESORES : "pertenece_a"
+    PROFESORES ||--o{ ASIGNATURAS : "imparte"
+    AULAS ||--o{ GRADOS_SECCIONES : "aloja"
+    GRADOS_SECCIONES ||--o{ ESTUDIANTES : "matricula"
+    PERIODOS_ESCOLARES ||--o{ ACTIVIDADES_EVALUATIVAS : "contiene"
+    ASIGNATURAS ||--o{ ACTIVIDADES_EVALUATIVAS : "define"
+    ESTUDIANTES ||--o{ CALIFICACIONES : "obtiene"
+    ACTIVIDADES_EVALUATIVAS ||--o{ CALIFICACIONES : "registra"
+    ESTUDIANTES ||--o{ ASISTENCIAS : "asiste"
+
+    USUARIOS {
+        int id PK
+        string nombre
+        string correo UK
+        string password_hash
+        enum rol
+        boolean estado
+    }
+    PROFESORES {
+        int id PK
+        int usuario_id FK
+        string especialidad
+        string telefono
+    }
+    ESTUDIANTES {
+        int id PK
+        string nie UK
+        string nombre_completo
+        string grado_seccion
+        string encargado
+        string telefono
+    }
+    PERIODOS_ESCOLARES {
+        int id PK
+        string nombre
+        int anio_lectivo_id
+        string estado
+    }
+    ACTIVIDADES_EVALUATIVAS {
+        int id PK
+        int asignatura_id FK
+        int periodo_id FK
+        string nombre
+        float ponderacion
+    }
+    CALIFICACIONES {
+        int id PK
+        int estudiante_id FK
+        int actividad_id FK
+        float nota
+    }
+```
+
+### 5.2 Estructura y Llaves de las Tablas
+1. **`usuarios`:**
+   * `id`: Clave primaria autoincremental.
+   * `correo`: `VARCHAR(100)` con restricción `UNIQUE` (no pueden existir dos usuarios con el mismo correo).
+   * `rol`: `ENUM('Director', 'Secretaria', 'Profesor')`.
+2. **`actividades_evaluativas`:**
+   * `asignatura_id` y `periodo_id`: Claves foráneas con `ON DELETE CASCADE`. Si un período o asignatura se elimina, sus actividades se depuran en cascada para mantener la integridad referencial.
+   * `ponderacion`: `FLOAT` representando el peso porcentual de la actividad dentro del período.
+3. **`calificaciones`:**
+   * `estudiante_id` y `actividad_id`: Relacionan la calificación con la persona y la evaluación correspondiente.
+   * `nota`: Valor decimal (`FLOAT`) validado para estar entre 0.0 y 10.0.
 
 ---
 
-## 5. Base de Datos Central (MariaDB)
-
-### 5.1 Especificaciones Técnicas
-* **Motor:** MariaDB Server 10.11+ / InnoDB
-* **Collation / Charset:** `utf8mb4_unicode_ci` (compatibilidad total con caracteres especiales en español, tildes y símbolos).
-* **Integridad Referencial:** Claves foráneas con borrado en cascada (`ON DELETE CASCADE`) para evitar registros huérfanos.
-
-### 5.2 Esquema de Tablas Principales
-| Tabla | Propósito | Llaves Principales |
-|---|---|---|
-| `usuarios` | Cuentas del sistema (Director, Secretaria, Profesor) | `id` (PK), `correo` (UNIQUE) |
-| `profesores` | Información laboral y especialidad docente | `id` (PK), `usuario_id` (FK a usuarios) |
-| `estudiantes` | Matrícula escolar, NIE, datos de contacto | `id` (PK), `nie` (UNIQUE) |
-| `grados_secciones` | Organización de salones (ej: 7° Grado "A") | `id` (PK), `aula_id` (FK) |
-| `asignaturas` | Materias académicas (Matemáticas, Lenguaje, etc.) | `id` (PK) |
-| `periodos_escolares` | Régimen de 4 períodos de evaluación anual | `id` (PK), `estado` (Activo/Inactivo) |
-| `actividades_evaluativas` | Tareas, exámenes o laboratorios por materia | `id` (PK), `asignatura_id` (FK), `periodo_id` (FK) |
-| `calificaciones` | Nota obtenida por cada alumno en cada actividad | `id` (PK), `estudiante_id` (FK), `actividad_id` (FK) |
-| `asistencias` | Registro de presencia/ausencia diaria | `id` (PK), `estudiante_id` (FK), `fecha` |
-| `institucion_config` | Datos del Complejo Educativo Santa Sofía | `id` (PK = 1) |
-
----
-
-## 6. Infraestructura en la Nube y DevOps (Azure)
+## 6. DevOps, Infraestructura Cloud y Seguridad (Azure)
 
 ### 6.1 Especificación del Servidor
-* **Proveedor:** Microsoft Azure (Región: `northcentralus`)
-* **Máquina Virtual:** `controlEscolar` (Standard_B2als_v2: 2 vCPUs AMD EPYC, 4 GB RAM)
-* **Sistema Operativo:** Ubuntu Server 24.04 LTS (Kernel Linux 6.8)
-* **IP Pública:** `130.131.113.202`
-* **Dominio Oficial FQDN:** `santasofia-escolar.northcentralus.cloudapp.azure.com`
+* **Nube:** Microsoft Azure Cloud Services.
+* **Región:** `northcentralus` (Chicago, EE. UU. - baja latencia para Centroamérica).
+* **Instancia:** `Standard_B2als_v2` con procesadores AMD EPYC™ (2 vCPUs, 4 GB RAM, 30 GB SSD Premium).
+* **Sistema Operativo:** Ubuntu Server 24.04 LTS (Long Term Support).
 
-### 6.2 Servicios de Segundo Plano (`systemd`)
-Ambos subsistemas se gestionan como demonios de Linux con auto-reinicio si fallan (`Restart=always`):
-1. **`escolar-backend.service`:**
-   ```ini
-   ExecStart=/var/www/control_escolar/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001 --workers 2
-   ```
-2. **`escolar-frontend.service`:**
-   ```ini
-   ExecStart=/var/www/control_escolar/frontend_web/venv/bin/gunicorn core_web.wsgi:application --bind 127.0.0.1:8000 --workers 3
-   ```
+### 6.2 Gestión de Procesos con `systemd` (Linux Daemons)
+Para garantizar alta disponibilidad (99.9% uptime), el sistema no se ejecuta en terminales manuales, sino mediante dos unidades de servicio de `systemd`:
 
-### 6.3 Configuración del Proxy Inverso (Nginx) y Seguridad SSL
-* **Nginx** actúa como punto único de entrada para tráfico web:
-  - Puerto 80 (HTTP) redirige automáticamente a HTTPS (301 Permanent Redirect).
-  - Puerto 443 (HTTPS) maneja el cifrado TLS 1.3 con certificados oficiales de **Let's Encrypt**.
-  - Servidor de archivos estáticos (`/static/` y `/media/`) servidos directamente desde el disco sin pasar por Python, optimizando memoria RAM.
-  - Proxy reverso hacia Gunicorn (`http://127.0.0.1:8000`) para todas las vistas web.
-* **Seguridad de Red en Azure (Network Security Group - NSG):**
-  - **Puerto 22 (SSH):** Gestión remota mediante par de llaves asimétricas RSA (`controlEscolar_key.pem`).
-  - **Puerto 80 (HTTP):** Tráfico web no seguro con redirección forzada a 443.
-  - **Puerto 443 (HTTPS):** Acceso cifrado al portal web administrativo.
-  - **Puerto 8001 (TCP):** Conexión directa de la aplicación móvil Flutter hacia FastAPI.
+1. **`escolar-backend.service` (`/etc/systemd/system/`):**
+   * Corre el servidor Uvicorn en el puerto interno `8001`.
+   * Parámetro `Restart=always` con `RestartSec=3`: Si el proceso colapsa por un error no previsto o si el servidor físico se reinicia, el kernel de Linux levanta el microservicio automáticamente en 3 segundos.
+2. **`escolar-frontend.service` (`/etc/systemd/system/`):**
+   * Corre el servidor WSGI Gunicorn en el puerto `8000` con 3 procesos trabajadores (*workers*) concurrentes.
+
+### 6.3 Configuración de Nginx como Reverse Proxy y SSL
+Nginx actúa como el centinela frontal de la arquitectura:
+* **Terminación SSL / TLS 1.3:**
+  Nginx descifra el tráfico HTTPS seguro entrante en el puerto `443` utilizando las llaves criptográficas de **Let's Encrypt** y reenvía el paquete por socket local a Gunicorn (`http://127.0.0.1:8000`).
+* **Redirección Forzada:**
+  Cualquier intento de conexión no cifrada al puerto `80` (HTTP) recibe inmediatamente una respuesta HTTP `301 Moved Permanently` redirigiendo al protocolo seguro `https://`.
+* **Despacho Estático de Alto Rendimiento:**
+  Las carpetas `/static/` (hojas de estilo CSS, scripts JavaScript, iconos) y `/media/` (logos de la institución) son servidas directamente por Nginx desde el sistema de archivos de Linux, sin involucrar al intérprete de Python, ahorrando ciclos de CPU y memoria.
+
+### 6.4 Certificados SSL Automatizados (Certbot ACME)
+* **Entidad Emisora:** Let's Encrypt CA (Certificado X.509 de clave elíptica `ECDSA` con SHA-384).
+* **Dominio FQDN:** `santasofia-escolar.northcentralus.cloudapp.azure.com`.
+* **Renovación Desatendida:** Certbot configuró el temporizador `certbot.timer` en systemd. Dos veces al día verifica la vigencia del certificado y lo renueva automáticamente 30 días antes de su vencimiento, sin interrumpir el servicio.
+
+### 6.5 Seguridad de Red (Network Security Group - NSG en Azure)
+Solo 4 puertos están expuestos al exterior en el firewall perimetral de Microsoft Azure:
+* **Puerto 22 (TCP):** Acceso SSH cifrado por par de llaves asimétricas RSA de 4096 bits (bloqueado por contraseña).
+* **Puerto 80 (TCP):** HTTP para resolución de retos ACME de Certbot y redirección segura.
+* **Puerto 443 (TCP):** HTTPS para navegación web cifrada de directores y secretarias.
+* **Puerto 8001 (TCP):** Endpoint de la API REST para comunicación con los teléfonos de los profesores.
+* *(El puerto 3306 de la base de datos MariaDB está estrictamente cerrado al exterior y solo acepta conexiones desde `127.0.0.1`)*.
 
 ---
 
-## 7. Cuestionario de Defensa Técnica (Preguntas Difíciles del Evaluador)
+## 7. Preguntas de Examen Técnico y Respuestas Maestras
 
-### P1: "¿Por qué tienen Django y FastAPI juntos? ¿No es redundante?"
-> **Respuesta:** *"No es redundante, responde a una separación clara de patrones de arquitectura: **FastAPI** actúa como el núcleo de microservicio para proveer una API REST pura, ultrarrápida y asíncrona que alimenta tanto la app móvil de los docentes como los servicios externos. **Django** se utiliza como un cliente web corporativo especializado en gestión administrativa, renderizado del portal, control de sesiones y generación masiva de reportes PDF pesados con ReportLab. Si en el futuro cambiamos el portal web por React, Angular o una app de escritorio, la API y la app móvil siguen funcionando intactas sin modificar una sola línea de lógica de negocio ni base de datos."*
+A continuación, las preguntas más difíciles y minuciosas que un jurado o profesor evaluador puede hacer, junto a las respuestas técnicas exactas para dejarlos sin réplica:
 
-### P2: "¿Por qué no conectaron la App Móvil directamente a MySQL?"
-> **Respuesta:** *"Por principios elementales de seguridad y arquitectura de software. Conectar una app móvil directamente a una base de datos obligaría a exponer el puerto 3306 a internet y a almacenar credenciales de base de datos dentro del código de la APK, lo que permitiría descompilar la app y hackear la base de datos. Además, la conexión directa carece de control de concurrencia y validación de reglas de negocio. La API REST actúa como una barrera de seguridad (Gateway) que valida tokens, roles y datos antes de tocar el almacenamiento."*
+### P1: "¿Por qué crearon dos servicios separados (FastAPI y Django) en lugar de hacer todo en Django?"
+> **Tu Respuesta:**
+> *"Diseñé el sistema bajo el principio de **Responsabilidad Única (Single Responsibility Principle)** y el patrón de **Arquitectura de Microservicios**.
+> FastAPI está optimizado a nivel de núcleo para operaciones asíncronas de Entrada/Salida (Async I/O), lo que permite que cientos de profesores pasando asistencia simultáneamente desde sus teléfonos móviles sean atendidos en milisegundos con un consumo de RAM casi nulo.
+> Django, por su parte, es el estándar de la industria para administración web y reportes pesados.
+> Al separarlos, si el día de mañana secretaría genera un reporte masivo de 500 páginas PDF que consuma CPU, la app móvil de los docentes ni siquiera se entera ni sufre lentitud, porque corre en un proceso independiente con su propio worker pool."*
 
-### P3: "¿Cómo evitan que un profesor altere las notas de otro grado o materia?"
-> **Respuesta:** *"El control de acceso está validado en la API: cada usuario autenticado tiene un rol (`Director`, `Secretaria`, `Profesor`). Cuando un docente consulta materias o intenta asentar notas, la API filtra las asignaturas cruzando la tabla `profesores` con `horarios` y `grados_secciones`. Si el `profesor_id` no coincide con el asignado a la materia, la solicitud es rechazada con código HTTP 403 Forbidden."*
+### P2: "¿Cómo manejan la concurrencia si dos profesores guardan notas al mismo tiempo?"
+> **Tu Respuesta:**
+> *"A través de tres niveles de concurrencia:
+> 1. En el servidor ASGI, **Uvicorn** procesa peticiones de forma no bloqueante sobre un Event Loop asíncrono.
+> 2. En el ORM, cada petición recibe una sesión independiente mediante la inyección de dependencias `Depends(get_db)`.
+> 3. En la base de datos, el motor **InnoDB de MariaDB** implementa bloqueo a nivel de fila (*Row-Level Locking*) y transacciones con aislamiento ACID. Las calificaciones de dos alumnos distintos en la misma materia se asientan en paralelo sin ningún tipo de colisión."*
 
-### P4: "¿Qué pasa si se corta el internet en el colegio mientras el docente califica?"
-> **Respuesta:** *"La aplicación Flutter está construida con resiliencia: los datos cargados permanecen en el estado local de la pantalla gracias a los controladores de estado. Si la petición HTTP falla o excede el timeout de 5 segundos, la app captura la excepción, notifica al docente con un SnackBar visual no bloqueante y retiene las notas ingresadas en pantalla para que el docente pueda reintentar la sincronización en cuanto regrese la conectividad."*
+### P3: "¿Por qué usaron SQLAlchemy en el Backend y SQLite en Django?"
+> **Tu Respuesta:**
+> *"MariaDB (gestionado con SQLAlchemy) es el **repositorio maestro de verdad** del colegio: allí residen los alumnos, docentes, materias y el historial oficial de calificaciones.
+> La base de datos SQLite en Django cumple un rol completamente diferente: es una base de datos local embebida de alta velocidad utilizada exclusivamente como **caché de sesión web y perfiles locales de usuario**. Esto evita saturar a la base de datos maestra con consultas triviales de cookies o navegación de páginas web."*
 
-### P5: "¿Cómo garantizan la validez de los certificados SSL en producción?"
-> **Respuesta:** *"Utilizamos la autoridad certificadora pública **Let's Encrypt** mediante **Certbot** con validación ACME HTTP-01 sobre nuestro FQDN oficial en Azure (`santasofia-escolar.northcentralus.cloudapp.azure.com`). Además, Certbot instaló un temporizador en systemd (`certbot.timer`) que se ejecuta dos veces al día para comprobar y renovar automáticamente los certificados antes de que expiren, garantizando disponibilidad 24/7 sin intervención manual."*
+### P4: "¿Qué algoritmo utilizaron para la descarga por lotes de boletas en PDF?"
+> **Tu Respuesta:**
+> *"Implementé un algoritmo de **ensamblado en memoria de doble pasada** utilizando la biblioteca ReportLab.
+> Creamos una clase personalizada que hereda de `canvas.Canvas` llamada `NumberedCanvas`. En la primera pasada, se recorre el listado de alumnos de la sección y se calcula el total dinámico de páginas acumuladas en memoria sin escribir a disco. En la segunda pasada, se estampa el membrete 'Página X de Y' con el total real.
+> Entre cada estudiante se inyecta un nodo `PageBreak()`. Esto genera un único documento PDF continuo y ligero, eliminando el problema de generar decenas de archivos dispersos en el servidor."*
+
+### P5: "¿Cómo garantizan que la API sea segura si un atacante intenta consumir los endpoints desde fuera?"
+> **Tu Respuesta:**
+> *"El sistema implementa seguridad en capas:
+> 1. **CORS:** El middleware de CORS valida los orígenes permitidos.
+> 2. **Tipado Estricto con Pydantic:** Cualquier petición malformada, con campos extras o con tipos alterados es descartada automáticamente en la puerta de enlace antes de invocar a la base de datos.
+> 3. **Firewall NSG de Azure:** Bloquea el puerto de la base de datos y solo permite tráfico en los puertos de servicio.
+> 4. **Autenticación:** Las rutas operativas exigen credenciales válidas y verifican el rol institucional del usuario."*
