@@ -27,6 +27,14 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://santasofia-escolar.northcentralus.cloudapp.azure.com',
+    'http://santasofia-escolar.northcentralus.cloudapp.azure.com',
+    'http://130.131.113.202',
+    'https://130.131.113.202',
+]
+
+
 
 # Application definition
 
