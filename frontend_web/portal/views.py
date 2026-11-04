@@ -164,13 +164,20 @@ def estudiantes_export_excel(request):
 @login_required
 def estudiante_create(request):
     rol = get_role(request.user)
-    if rol != 'Secretaria':
+    if rol not in ['Secretaria', 'Director']:
         messages.error(request, "Acceso Denegado: La matrícula es responsabilidad exclusiva de Secretaría.")
         return redirect('estudiantes_list')
 
     if request.method == "POST":
         nie = request.POST.get("nie", "").strip()
         nombre_completo = request.POST.get("nombre_completo", "").strip()
+        if not nombre_completo:
+            nombres = request.POST.get("nombres", "").strip()
+            apellidos = request.POST.get("apellidos", "").strip()
+            if nombres or apellidos:
+                nombre_completo = f"{nombres} {apellidos}".strip()
+            else:
+                nombre_completo = request.POST.get("nombre", "").strip()
         grado_seccion = request.POST.get("grado_seccion", "").strip()
         encargado = request.POST.get("encargado", "").strip()
         telefono = request.POST.get("telefono", "").strip()
@@ -197,14 +204,14 @@ def estudiante_create(request):
 @login_required
 def estudiante_update(request, id):
     rol = get_role(request.user)
-    if rol != 'Secretaria':
+    if rol not in ['Secretaria', 'Director']:
         messages.error(request, "Acceso Denegado: Solo Secretaría puede modificar expedientes.")
         return redirect('estudiantes_list')
 
     if request.method == "POST":
         data = {
             "nie": request.POST.get("nie", "").strip(),
-            "nombre_completo": request.POST.get("nombre_completo", "").strip(),
+            "nombre_completo": (request.POST.get("nombre_completo") or request.POST.get("nombre") or "").strip(),
             "grado_seccion": request.POST.get("grado_seccion", "").strip(),
             "encargado": request.POST.get("encargado", "").strip(),
             "telefono": request.POST.get("telefono", "").strip()
@@ -220,7 +227,7 @@ def estudiante_update(request, id):
 @login_required
 def estudiante_delete(request, id):
     rol = get_role(request.user)
-    if rol != 'Secretaria':
+    if rol not in ['Secretaria', 'Director']:
         messages.error(request, "Acceso Denegado: Solo Secretaría puede dar de baja estudiantes.")
         return redirect('estudiantes_list')
 
