@@ -4,7 +4,7 @@
 ---
 
 ### PRESENTACIÓN GENERAL Y FICHA TÉCNICA
-* **Institución:** Complejo Educativo San Bartolomé
+* **Institución:** Complejo Educativo Santa Sofía
 * **Proyecto:** Ecosistema Digital de Control Escolar (Web Administrativa + Móvil Docente + API Centralizada)
 * **Stack Tecnológico:**
   - **Backend API:** FastAPI (Python 3.10+), SQLAlchemy ORM, Pydantic, Uvicorn
@@ -19,7 +19,7 @@
 * **Título:** Sistema Integral de Gestión y Control Escolar (SIGE)
 * **Subtítulo:** Ecosistema Tecnológico Desacoplado para la Administración Centralizada y Gestión Operativa de Aula
 * **Elementos en Diapositiva:**
-  - Logotipo Institucional del Complejo Educativo San Bartolomé
+  - Logotipo Institucional del Complejo Educativo Santa Sofía
   - Autor(es) / Equipo de Desarrollo
   - Componentes: Portal Web Directivo | Aplicación Móvil Docente | API Restful Centralizada
   - Fecha de Defensa Técnica

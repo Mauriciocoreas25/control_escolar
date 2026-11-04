@@ -39,13 +39,13 @@ class ApiService {
     }
     return Institucion(
       id: 1,
-      nombre: 'Complejo Educativo San Bartolomé',
-      codigoMined: '10245',
+      nombre: 'Complejo Educativo Santa Sofía',
+      codigoMined: '10234',
       anioLectivo: '2026',
-      regimen: 'Régimen Trimestral',
-      directorNombre: 'Lic. Roberto Mendoza',
+      regimen: '4 Períodos Anuales',
+      directorNombre: 'Lic. Roberto Antonio Mendoza',
       telefono: '2222-3333',
-      direccion: 'San Bartolomé Perulapía, Cuscatlán',
+      direccion: 'Barrio El Centro, San Salvador, El Salvador',
     );
   }
 

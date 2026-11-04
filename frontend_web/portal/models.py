@@ -15,12 +15,13 @@ class PerfilUsuario(models.Model):
         return f"{self.user.get_full_name()} ({self.rol})"
 
 class ConfiguracionInstitucion(models.Model):
-    nombre = models.CharField(max_length=200, default="Complejo Educativo San Bartolomé")
-    codigo_mined = models.CharField(max_length=50, default="10245")
+    nombre = models.CharField(max_length=200, default="Complejo Educativo Santa Sofía")
+    codigo_mined = models.CharField(max_length=50, default="10234")
     anio_lectivo = models.CharField(max_length=10, default="2026")
-    regimen = models.CharField(max_length=50, default="4 Períodos de Evaluación")
-    director_nombre = models.CharField(max_length=150, default="Lic. Roberto Mendoza")
-    direccion = models.CharField(max_length=250, default="San Bartolomé Perulapía, Cuscatlán")
+    regimen = models.CharField(max_length=50, default="4 Períodos Anuales")
+    director_nombre = models.CharField(max_length=150, default="Lic. Roberto Antonio Mendoza")
+    direccion = models.CharField(max_length=250, default="Barrio El Centro, San Salvador, El Salvador")
+
     telefono = models.CharField(max_length=50, default="2222-3333")
     logo = models.ImageField(upload_to='institucion/', blank=True, null=True)
 
