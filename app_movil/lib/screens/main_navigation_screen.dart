@@ -20,6 +20,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   Asignatura? _selectedCourseForAction;
   Map<String, dynamic>? _currentUser;
+  Map<String, dynamic>? _profesorPerfil;
+  Institucion? _institucion;
 
   @override
   void initState() {
@@ -45,6 +47,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       return;
     }
     setState(() => _currentUser = user);
+
+    try {
+      final userId = user['id'] as int?;
+      if (userId != null) {
+        final perfil = await ApiService.getProfesorPerfil(userId);
+        final inst = await ApiService.getInstitucion();
+        if (mounted) {
+          setState(() {
+            _profesorPerfil = perfil;
+            _institucion = inst;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al cargar datos del perfil: ');
+    }
   }
 
   void _onNavigateTab(int index, {Asignatura? asignatura}) {
@@ -387,9 +405,210 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
+  Widget _buildProfileInfoRow({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String value,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: iconColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF64748B),
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.primaryDark,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showChangePasswordDialog() {
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.lock_reset_rounded, color: AppTheme.primaryNavy, size: 22),
+              SizedBox(width: 10),
+              Text('Cambiar Contraseña', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Ingrese su nueva contraseña de acceso institucional para la plataforma docente.',
+                  style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: newPassCtrl,
+                  obscureText: obscureNew,
+                  decoration: InputDecoration(
+                    labelText: 'Nueva Contraseña',
+                    hintText: 'Mínimo 4 caracteres',
+                    prefixIcon: const Icon(Icons.key_rounded, size: 20),
+                    suffixIcon: IconButton(
+                      icon: Icon(obscureNew ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 20),
+                      onPressed: () => setDialogState(() => obscureNew = !obscureNew),
+                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: confirmPassCtrl,
+                  obscureText: obscureConfirm,
+                  decoration: InputDecoration(
+                    labelText: 'Confirmar Contraseña',
+                    hintText: 'Repita la nueva contraseña',
+                    prefixIcon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                    suffixIcon: IconButton(
+                      icon: Icon(obscureConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 20),
+                      onPressed: () => setDialogState(() => obscureConfirm = !obscureConfirm),
+                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancelar', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryNavy,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              ),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      final newPass = newPassCtrl.text.trim();
+                      final confirmPass = confirmPassCtrl.text.trim();
+
+                      if (newPass.isEmpty || confirmPass.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Por favor complete ambos campos.'), backgroundColor: Colors.orange),
+                        );
+                        return;
+                      }
+                      if (newPass.length < 4) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('La contraseña debe tener al menos 4 caracteres.'), backgroundColor: Colors.orange),
+                        );
+                        return;
+                      }
+                      if (newPass != confirmPass) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Las contraseñas no coinciden.'), backgroundColor: Colors.redAccent),
+                        );
+                        return;
+                      }
+
+                      setDialogState(() => isSubmitting = true);
+                      final userId = _currentUser?['id'];
+                      if (userId == null) {
+                        setDialogState(() => isSubmitting = false);
+                        return;
+                      }
+
+                      final res = await ApiService.updatePassword(userId, newPass);
+                      setDialogState(() => isSubmitting = false);
+
+                      if (res['success'] == true) {
+                        if (!mounted) return;
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Row(
+                              children: [
+                                Icon(Icons.check_circle_rounded, color: Colors.white),
+                                SizedBox(width: 8),
+                                Expanded(child: Text('Contraseña actualizada correctamente.')),
+                              ],
+                            ),
+                            backgroundColor: Color(0xFF059669),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(res['message'] ?? 'Error al actualizar contraseña.'),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildPerfilScreen() {
     final nombre = _currentUser?['nombre'] ?? 'Docente Autorizado';
     final correo = _currentUser?['correo'] ?? 'docente@santasofia.edu.sv';
+    final rol = _currentUser?['rol'] ?? 'Docente';
+    final especialidad = _profesorPerfil?['especialidad'] ?? 'Docencia General';
+    final telefono = _profesorPerfil?['telefono'] ?? '7890-1234';
+    final instNombre = _institucion?.nombre ?? 'Complejo Educativo Santa Sofía';
+    final codigoMined = _institucion?.codigoMined ?? '10234';
+    final anioLectivo = _institucion?.anioLectivo ?? '2026';
+    final regimen = _institucion?.regimen ?? '4 Períodos Anuales';
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -426,7 +645,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 GlassContainer(
                   borderRadius: 24,
                   blur: 20,
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(22),
                   child: Column(
                     children: [
                       Container(
@@ -446,7 +665,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                         alignment: Alignment.center,
                         child: const Icon(Icons.person_rounded, size: 44, color: Colors.white),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       Text(
                         nombre,
                         textAlign: TextAlign.center,
@@ -462,24 +681,49 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                         correo,
                         style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
                       ),
-                      const SizedBox(height: 14),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                        decoration: BoxDecoration(
-                          gradient: AppTheme.emeraldGradient,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF059669).withOpacity(0.25),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFBFDBFE)),
                             ),
-                          ],
-                        ),
-                        child: const Text(
-                          '• Sesión Institucional Verificada',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
-                        ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.badge_rounded, size: 14, color: Color(0xFF2563EB)),
+                                const SizedBox(width: 5),
+                                Text(
+                                  rol,
+                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF1D4ED8)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.emeraldGradient,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF059669).withOpacity(0.2),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Text(
+                              '• Activo en Sistema',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -487,19 +731,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
                 const SizedBox(height: 18),
 
-                // Conexión del Servidor
+                // Tarjeta de Datos del Docente e Institución
                 GlassContainer(
-                  borderRadius: 18,
-                  padding: const EdgeInsets.all(18),
+                  borderRadius: 20,
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: const [
-                          Icon(Icons.dns_rounded, size: 18, color: AppTheme.primaryNavy),
+                          Icon(Icons.badge_outlined, size: 18, color: AppTheme.primaryNavy),
                           SizedBox(width: 8),
                           Text(
-                            'CONEXIÓN DEL SERVIDOR ESCOLAR',
+                            'INFORMACIÓN DOCENTE E INSTITUCIONAL',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
@@ -509,38 +753,120 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              ApiService.baseUrl,
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                fontFamily: 'monospace',
-                                color: Color(0xFF334155),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryNavy,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                            onPressed: _showServerConfigDialog,
-                            child: const Text('Cambiar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          ),
-                        ],
+                      const SizedBox(height: 14),
+                      _buildProfileInfoRow(
+                        icon: Icons.school_rounded,
+                        iconColor: const Color(0xFF2563EB),
+                        title: 'Centro Educativo',
+                        value: instNombre,
+                      ),
+                      const Divider(height: 12, color: Color(0xFFE2E8F0)),
+                      _buildProfileInfoRow(
+                        icon: Icons.menu_book_rounded,
+                        iconColor: const Color(0xFF7C3AED),
+                        title: 'Especialidad / Asignaturas',
+                        value: especialidad,
+                      ),
+                      const Divider(height: 12, color: Color(0xFFE2E8F0)),
+                      _buildProfileInfoRow(
+                        icon: Icons.phone_android_rounded,
+                        iconColor: const Color(0xFF059669),
+                        title: 'Teléfono Institucional',
+                        value: telefono,
+                      ),
+                      const Divider(height: 12, color: Color(0xFFE2E8F0)),
+                      _buildProfileInfoRow(
+                        icon: Icons.account_balance_rounded,
+                        iconColor: const Color(0xFFEA580C),
+                        title: 'Código de Infraestructura MINED',
+                        value: codigoMined,
+                      ),
+                      const Divider(height: 12, color: Color(0xFFE2E8F0)),
+                      _buildProfileInfoRow(
+                        icon: Icons.calendar_today_rounded,
+                        iconColor: const Color(0xFF0284C7),
+                        title: 'Año Lectivo y Régimen',
+                        value: ' • ',
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
+
+                // Tarjeta de Seguridad (Cambio de Contraseña)
+                GlassContainer(
+                  borderRadius: 20,
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.security_rounded, size: 18, color: AppTheme.primaryNavy),
+                          SizedBox(width: 8),
+                          Text(
+                            'SEGURIDAD DE LA CUENTA',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.primaryNavy,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: _showChangePasswordDialog,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1E293B).withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.lock_reset_rounded, size: 20, color: AppTheme.primaryNavy),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: const [
+                                      Text(
+                                        'Cambiar Contraseña',
+                                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppTheme.primaryDark),
+                                      ),
+                                      SizedBox(height: 2),
+                                      Text(
+                                        'Actualice su clave de acceso personal',
+                                        style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.arrow_forward_ios_rounded, size: 15, color: Color(0xFF94A3B8)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
 
                 // Botón de Cierre de Sesión
                 Container(
@@ -550,9 +876,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFDC2626).withOpacity(0.35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 5),
+                        color: const Color(0xFFDC2626).withOpacity(0.3),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -574,6 +900,36 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                               fontWeight: FontWeight.w800,
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 22),
+
+                // Servidor discreto al pie
+                Center(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: _showServerConfigDialog,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.cloud_done_outlined, size: 13, color: Color(0xFF94A3B8)),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Servidor: ',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontFamily: 'monospace',
+                              color: Color(0xFF94A3B8),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.edit_outlined, size: 11, color: Color(0xFF94A3B8)),
                         ],
                       ),
                     ),

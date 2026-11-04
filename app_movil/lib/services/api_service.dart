@@ -396,4 +396,40 @@ class ApiService {
     }
     return [];
   }
+  // ==================== PERFIL Y CONTRASENA ====================
+  static Future<Map<String, dynamic>?> getProfesorPerfil(int usuarioId) async {
+    try {
+      final res = await http.get(Uri.parse('$baseUrl/profesores/')).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final List list = jsonDecode(utf8.decode(res.bodyBytes));
+        for (var p in list) {
+          if (p['usuario_id'] == usuarioId) {
+            return Map<String, dynamic>.from(p);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al obtener perfil del profesor: $e');
+    }
+    return null;
+  }
+
+  static Future<Map<String, dynamic>> updatePassword(int usuarioId, String newPassword) async {
+    try {
+      final res = await http.patch(
+        Uri.parse('$baseUrl/usuarios/$usuarioId/password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'password': newPassword.trim()}),
+      ).timeout(const Duration(seconds: 5));
+
+      if (res.statusCode == 200) {
+        return {'success': true, 'message': 'Contrasena actualizada correctamente'};
+      } else {
+        final err = jsonDecode(utf8.decode(res.bodyBytes));
+        return {'success': false, 'message': err['detail'] ?? 'Error al actualizar contrasena'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'No se pudo conectar con el servidor'};
+    }
+  }
 }
