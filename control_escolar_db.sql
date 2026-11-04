@@ -681,7 +681,7 @@ CREATE TABLE `actividades_evaluativas` (
   KEY `periodo_id` (`periodo_id`),
   CONSTRAINT `actividades_evaluativas_ibfk_1` FOREIGN KEY (`asignatura_id`) REFERENCES `asignaturas` (`id`) ON DELETE CASCADE,
   CONSTRAINT `actividades_evaluativas_ibfk_2` FOREIGN KEY (`periodo_id`) REFERENCES `periodos_escolares` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Volcado de datos para la tabla `actividades_evaluativas`
 INSERT INTO `actividades_evaluativas` (`id`, `asignatura_id`, `periodo_id`, `nombre`, `tipo`, `ponderacion`, `fecha`, `descripcion`) VALUES
