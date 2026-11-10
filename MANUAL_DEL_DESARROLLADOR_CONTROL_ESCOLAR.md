@@ -4,7 +4,7 @@
 
 ---
 
-# 1. PORTADA / CARÁTULA INSTITUCIONAL
+# 1. PORTADA / CARÁTULA
 
 ```
 ========================================================================================
@@ -13,18 +13,21 @@
                DEPARTAMENTO DE COMPUTACIÓN Y SISTEMAS INFORMÁTICOS
 ========================================================================================
 
-               PROYECTO INTEGRADOR DE CIERRE DE CICLO (CICLO II - 2026)
+                 PROYECTO DE CIERRE DE CICLO (CICLO II - 2026)
 
 ASIGNATURAS INTEGRADAS:
 * APLICACIÓN DE METODOLOGÍAS ÁGILES Y CONTROL DE CALIDAD
 * DESARROLLO DE APLICACIONES MÓVILES
+
+DOCENTE EVALUADOR / CATEDRÁTICO:
+* ING. EDUARDO JOSÉ VÁSQUEZ FLORES
 
 TÍTULO DEL PROYECTO:
 "SISTEMA INTEGRAL WEB Y MÓVIL PARA LA ADMINISTRACIÓN DE CONTROL ESCOLAR,
         REGISTRO DE CALIFICACIONES Y ASISTENCIA EN TIEMPO REAL"
 
 CASO DE ESTUDIO / ENTIDAD BENEFICIARIA:
-COMPLEJO EDUCATIVO SANTA SOFÍA (CÓDIGO MINED: 10234)
+COMPLEJO EDUCATIVO SANTA SOFÍA (CÓDIGO DE INFRAESTRUCTURA MINED: 10234)
 
 ----------------------------------------------------------------------------------------
 Documento Técnico:         MANUAL DEL DESARROLLADOR (DEVELOPER ARCHITECTURE MANUAL)
@@ -40,26 +43,9 @@ ESTUDIANTES / EQUIPO DE DESARROLLO:
 * Mauricio Coreas              (Desarrollador Full-Stack, Arquitectura Web & API)
 * José Moisés Buruca Girón     (Desarrollador Móvil Flutter & Control de Calidad QA)
 
-DOCENTES EVALUADORES:
-* Docente Evaluador: Aplicación de Metodologías Ágiles y Control de Calidad
-* Docente Evaluador: Desarrollo de Aplicaciones Móviles
-
-Conchagua, La Unión, El Salvador — Año 2026
+Conchagua, La Unión, El Salvador — Ciclo II, 2026
 ========================================================================================
 ```
-
-### FICHA TÉCNICA INSTITUCIONAL (ESTÁNDAR ITCA-FEPADE MEGATEC LA UNIÓN)
-
-| Parámetro Académico | Detalle del Proyecto |
-| :--- | :--- |
-| **Institución de Educación Superior:** | Escuela Especializada en Ingeniería ITCA-FEPADE — Sede Regional MEGATEC La Unión |
-| **Carrera:** | Técnico en Ingeniería de Desarrollo de Software / Redes Informáticas |
-| **Nivel / Ciclo Académico:** | Cierre de Ciclo — Ciclo II / 2026 |
-| **Asignaturas Evaluadas:** | 1. Aplicación de Metodologías Ágiles y Control de Calidad<br>2. Desarrollo de Aplicaciones Móviles |
-| **Título del Proyecto:** | Sistema Integral Web y Móvil para la Administración de Control Escolar, Registro de Calificaciones y Asistencia en Tiempo Real |
-| **Institución Beneficiaria:** | Complejo Educativo Santa Sofía (Código de Infraestructura MINED: 10234) |
-| **Estudiantes Desarrolladores:** | • **Mauricio Coreas**<br>• **José Moisés Buruca Girón** |
-| **Lugar y Fecha de Entrega:** | Conchagua, La Unión, El Salvador — Noviembre de 2026 |
 
 ---
 
