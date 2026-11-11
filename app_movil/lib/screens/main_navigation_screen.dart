@@ -129,7 +129,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     return Scaffold(
       extendBody: true,
-      body: screens[_currentIndex],
+      body: IndexedStack(index: _currentIndex, children: screens),
       drawer: Drawer(
         backgroundColor: Colors.white,
         child: SafeArea(

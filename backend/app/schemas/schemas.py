@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import date
 from typing import Optional
 class EstudianteCreate(BaseModel):
@@ -68,7 +68,7 @@ class CalificacionCreate(BaseModel):
     estudiante_id: int
     asignatura_id: int
     periodo_id: int
-    nota: float
+    nota: float = Field(..., ge=0.0, le=10.0, description='Calificación entre 0.0 y 10.0')
     tipo_evaluacion: Optional[str] = "Actividad 1: Examen Parcial (35%)"
 
 class CalificacionResponse(CalificacionCreate):

@@ -24,16 +24,16 @@ class _GradosScreenState extends State<GradosScreen> {
   final Map<int, TextEditingController> _controllers = {};
 
   List<ActividadEvaluativa> _actividadesBD = [];
-  String _actividadSeleccionada = 'Actividad 1: Examen Parcial';
+  String _actividadSeleccionada = 'Actividad 1: Examen Parcial (35%)';
   bool _isLoading = true;
   bool _isSaving = false;
   Map<String, dynamic>? _currentUser;
 
   final List<String> _actividadesEstandar = [
-    'Actividad 1: Examen Parcial',
-    'Actividad 2: Guías y Tareas',
-    'Actividad 3: Proyecto Aplicado',
-    'Evaluación de Recuperación',
+    'Actividad 1: Examen Parcial (35%)',
+    'Actividad 2: Guías y Tareas (35%)',
+    'Actividad 3: Proyecto Aplicado (30%)',
+    'Evaluación de Recuperación (100%)',
   ];
 
   @override
@@ -61,7 +61,7 @@ class _GradosScreenState extends State<GradosScreen> {
 
     final todasOpciones = _listaNombresActividades;
     if (!todasOpciones.contains(_actividadSeleccionada)) {
-      _actividadSeleccionada = todasOpciones.isNotEmpty ? todasOpciones.first : 'Actividad 1: Examen Parcial';
+      _actividadSeleccionada = todasOpciones.isNotEmpty ? todasOpciones.first : 'Actividad 1: Examen Parcial (35%)';
     }
 
     final califs = await ApiService.getCalificaciones(
@@ -1034,7 +1034,20 @@ class _GradosScreenState extends State<GradosScreen> {
                     ? AppTheme.primaryNavy
                     : (esAprobada ? AppTheme.statusPresente : AppTheme.statusAusente),
               ),
-              onChanged: (_) {
+              onChanged: (text) {
+                final clean = text.replaceAll(',', '.');
+                final numVal = double.tryParse(clean);
+                if (numVal != null && numVal > 10.0) {
+                  controller.text = '10.0';
+                  controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('La calificación máxima permitida es 10.0.'),
+                      backgroundColor: Colors.orange,
+                      duration: Duration(milliseconds: 1500),
+                    ),
+                  );
+                }
                 setState(() {});
               },
               decoration: InputDecoration(

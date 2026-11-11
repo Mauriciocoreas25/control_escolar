@@ -60,6 +60,11 @@ def listar_calificaciones(
 
 @router.post("/", response_model=CalificacionResponse)
 def registrar_calificacion(calificacion_data: CalificacionCreate, db: Session = Depends(get_db)):
+    if calificacion_data.nota < 0.0 or calificacion_data.nota > 10.0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La calificación debe estar comprendida estrictamente entre 0.0 y 10.0."
+        )
     # Buscar si ya existe una calificación para el estudiante, materia y periodo
     query = db.query(Calificacion).filter(
         Calificacion.estudiante_id == calificacion_data.estudiante_id,
@@ -88,6 +93,11 @@ def registrar_calificacion(calificacion_data: CalificacionCreate, db: Session = 
 
 @router.patch("/{calificacion_id}", response_model=CalificacionResponse)
 def actualizar_calificacion(calificacion_id: int, calificacion_data: CalificacionCreate, db: Session = Depends(get_db)):
+    if calificacion_data.nota < 0.0 or calificacion_data.nota > 10.0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La calificación debe estar comprendida estrictamente entre 0.0 y 10.0."
+        )
     db_calificacion = db.query(Calificacion).filter(Calificacion.id == calificacion_id).first()
     if not db_calificacion:
         raise HTTPException(status_code=404, detail="Calificación no encontrada")

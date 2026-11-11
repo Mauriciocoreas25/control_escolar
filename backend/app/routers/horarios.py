@@ -15,6 +15,7 @@ router = APIRouter(prefix="/horarios", tags=["Horarios"])
 def listar_horarios(
     grado_seccion_id: Optional[int] = None,
     profesor_id: Optional[int] = None,
+    profesor_nombre: Optional[str] = None,
     dia_semana: Optional[str] = None,
     anio_lectivo_id: Optional[int] = None,
     db: Session = Depends(get_db)
@@ -45,6 +46,9 @@ def listar_horarios(
         query = query.filter(Horario.dia_semana == dia_semana)
     if anio_lectivo_id:
         query = query.filter(Horario.anio_lectivo_id == anio_lectivo_id)
+    if profesor_nombre:
+        limpio = profesor_nombre.replace("Lic. ", "").replace("Prof. ", "").replace("Ing. ", "").strip()
+        query = query.filter((Usuario.nombre.ilike(f"%{profesor_nombre}%")) | (Usuario.nombre.ilike(f"%{limpio}%")))
 
     # Ordenar por día y hora
     dias_orden = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"]

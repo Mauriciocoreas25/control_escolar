@@ -379,6 +379,7 @@ class ApiService {
       String url = '$baseUrl/horarios/';
       final qp = <String, String>{};
       if (profesorId != null) qp['profesor_id'] = profesorId.toString();
+      if (profesorNombre != null && profesorNombre.trim().isNotEmpty) qp['profesor_nombre'] = profesorNombre.trim();
       if (diaSemana != null && diaSemana.isNotEmpty) qp['dia_semana'] = diaSemana;
       if (qp.isNotEmpty) {
         url += '?${Uri(queryParameters: qp).query}';
