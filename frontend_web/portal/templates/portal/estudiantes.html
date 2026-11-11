@@ -12,7 +12,7 @@
     </div>
 
     <div class="flex items-center space-x-2">
-      <a href="{% url 'estudiantes_export_pdf' %}{% if query %}?q={{ query }}{% endif %}" target="_blank" class="px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition flex items-center gap-1.5 shadow-xs" title="Exportar e imprimir Padrón Oficial en PDF">
+      <a href="{% url 'estudiantes_export_pdf' %}{% if query %}?q={{ query }}{% endif %}" target="_blank" class="px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition flex items-center gap-1.5 shadow-xs" title="Exportar padrón en PDF">
         <svg class="w-3.5 h-3.5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
         <span>Padrón PDF</span>
       </a>
@@ -45,7 +45,7 @@
       <table class="w-full text-left text-sm text-slate-600">
         <thead class="bg-slate-100/75 text-xs uppercase text-slate-500 font-semibold border-b border-slate-200">
           <tr>
-            <th class="px-4 py-3.5">NIE Oficial</th>
+            <th class="px-4 py-3.5">NIE</th>
             <th class="px-4 py-3.5">Estudiante</th>
             <th class="px-4 py-3.5">Grado y Sección</th>
             <th class="px-4 py-3.5">Ficha Médica / Alergias</th>
@@ -71,15 +71,15 @@
             <td class="px-4 py-3.5">
               {% if e.alergias and e.alergias != "Ninguna conocida" and e.alergias != "No especificada" and e.alergias != "Ninguna" %}
                 <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" title="Alergias: {{ e.alergias }}">
-                  ⚠️ {{ e.alergias|truncatechars:18 }}
+                  {{ e.alergias|truncatechars:20 }}
                 </span>
               {% elif e.condiciones_medicas and e.condiciones_medicas != "Ninguna reportada" and e.condiciones_medicas != "No especificada" and e.condiciones_medicas != "Ninguna" %}
                 <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200" title="Condición: {{ e.condiciones_medicas }}">
-                  🏥 {{ e.condiciones_medicas|truncatechars:18 }}
+                  {{ e.condiciones_medicas|truncatechars:20 }}
                 </span>
               {% else %}
                 <span class="inline-flex items-center text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  ✓ Salud OK
+                  Sin observaciones
                 </span>
               {% endif %}
             </td>
@@ -92,7 +92,7 @@
               <button type="button" 
                       onclick="openExpedienteModal('{{ e.id }}', '{{ e.nie }}', '{{ e.nombre_completo|escapejs }}', '{{ e.grado_seccion|escapejs }}', '{{ e.fecha_nacimiento|default:'No especificada'|escapejs }}', '{{ e.direccion|default:'No especificada'|escapejs }}', '{{ e.alergias|default:'Ninguna conocida'|escapejs }}', '{{ e.condiciones_medicas|default:'Ninguna reportada'|escapejs }}', '{{ e.encargado|default:'Sin asignar'|escapejs }}', '{{ e.telefono|default:'N/A'|escapejs }}')" 
                       class="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition">
-                👁️ Expediente
+                Expediente
               </button>
 
               {% if puede_matricular %}
@@ -100,7 +100,7 @@
                 <button type="button" 
                         onclick="openEditModal('{{ e.id }}', '{{ e.nie }}', '{{ e.nombre_completo|escapejs }}', '{{ e.grado_seccion|escapejs }}', '{{ e.fecha_nacimiento|default:''|escapejs }}', '{{ e.direccion|default:''|escapejs }}', '{{ e.alergias|default:'Ninguna conocida'|escapejs }}', '{{ e.condiciones_medicas|default:'Ninguna reportada'|escapejs }}', '{{ e.encargado|default:''|escapejs }}', '{{ e.telefono|default:''|escapejs }}')" 
                         class="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded border border-slate-300 transition">
-                  ✏️ Editar
+                  Editar
                 </button>
 
                 <form method="POST" action="{% url 'estudiante_delete' e.id %}" onsubmit="return confirm('¿Confirma que desea dar de baja del ciclo escolar al estudiante {{ e.nombre_completo|escapejs }}?')" class="inline">
@@ -127,101 +127,120 @@
 
 <!-- ==================== MODAL 1: CONSULTAR EXPEDIENTE DEL ESTUDIANTE ==================== -->
 <div id="modal-expediente" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in duration-150">
-    <!-- Header Modal -->
+  <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 space-y-4 animate-in fade-in duration-150">
+    <!-- Encabezado del Modal -->
     <div class="flex items-center justify-between pb-3 border-b border-slate-200">
       <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-blue-900 text-white flex items-center justify-center font-bold text-base shadow-sm">
-          🎓
+        <div class="w-8 h-8 rounded-lg bg-blue-900 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
         </div>
         <div>
-          <h3 class="text-base font-bold text-slate-900">Expediente Oficial del Estudiante</h3>
-          <p class="text-xs text-slate-500">Complejo Educativo Santa Sofía • Registro MINED</p>
+          <h3 class="text-sm font-bold text-slate-900 leading-tight">Expediente del Estudiante</h3>
+          <p class="text-[11px] text-slate-500">Complejo Educativo Santa Sofía &bull; Registro Académico</p>
         </div>
       </div>
-      <button onclick="closeModal('modal-expediente')" class="text-slate-400 hover:text-slate-600 font-bold text-xl leading-none">&times;</button>
+      <button onclick="closeModal('modal-expediente')" class="text-slate-400 hover:text-slate-600 font-bold text-lg leading-none">&times;</button>
     </div>
 
-    <!-- Tarjeta Principal del Alumno -->
-    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-      <div>
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-mono font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded border border-blue-200">
-            NIE: <span id="exp-nie">---</span>
+    <!-- Tarjeta Resumen del Alumno -->
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 pb-2 border-b border-slate-200/80">
+        <div>
+          <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">Estudiante Matriculado</span>
+          <h4 id="exp-nombre" class="text-sm font-bold text-slate-900">---</h4>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs font-mono font-semibold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+            NIE: <span id="exp-nie" class="font-bold text-blue-900">---</span>
           </span>
-          <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span> Matrícula Activa 2026
+          <span class="text-xs font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+            Activo 2026
           </span>
         </div>
-        <h4 id="exp-nombre" class="text-base font-bold text-slate-900 mt-1">---</h4>
-        <p class="text-xs text-slate-600 font-medium">Sección asignada: <strong id="exp-grado" class="text-slate-900">---</strong></p>
       </div>
-
-      <div class="text-right">
-        <span class="text-[11px] text-slate-500 uppercase tracking-wider block font-semibold">Estado de Salud</span>
-        <span id="exp-salud-badge" class="inline-block text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full mt-0.5">
-          ✓ Sin observaciones
-        </span>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+        <div>
+          <span class="text-slate-500 text-[11px] block">Grado y Sección:</span>
+          <span id="exp-grado" class="font-semibold text-slate-800">---</span>
+        </div>
+        <div>
+          <span class="text-slate-500 text-[11px] block">Estado de Salud:</span>
+          <span id="exp-salud-badge" class="inline-block font-medium text-slate-700">Sin observaciones</span>
+        </div>
       </div>
     </div>
 
-    <!-- Grilla de Información Detallada del Expediente -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <!-- Bloque 1: Datos Personales & Residencia -->
-      <div class="bg-white border border-slate-200 rounded-xl p-4 space-y-2.5 shadow-xs">
-        <div class="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-1.5">
-          <span>👤 Datos Personales & Domicilio</span>
+    <!-- Grilla de Información Detallada -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <!-- Bloque 1: Datos Personales & Domicilio -->
+      <div class="border border-slate-200 rounded-lg p-3 space-y-2 bg-white">
+        <h5 class="text-[11px] font-bold text-slate-700 uppercase tracking-wide border-b border-slate-100 pb-1 flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+          </svg>
+          Datos Personales y Domicilio
+        </h5>
+        <div>
+          <span class="text-[11px] text-slate-500 block">Fecha de Nacimiento:</span>
+          <span id="exp-fecha-nac" class="text-xs font-medium text-slate-800">---</span>
         </div>
         <div>
-          <span class="text-[11px] font-semibold text-slate-500 block">Fecha de Nacimiento:</span>
-          <span id="exp-fecha-nac" class="text-xs font-bold text-slate-800">---</span>
-        </div>
-        <div>
-          <span class="text-[11px] font-semibold text-slate-500 block">Dirección de Residencia:</span>
+          <span class="text-[11px] text-slate-500 block">Dirección de Residencia:</span>
           <span id="exp-direccion" class="text-xs text-slate-700 leading-relaxed font-medium">---</span>
         </div>
       </div>
 
-      <!-- Bloque 2: Ficha Médica (Evaluada en Rúbrica) -->
-      <div class="bg-white border border-slate-200 rounded-xl p-4 space-y-2.5 shadow-xs">
-        <div class="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-1.5">
-          <span>🩺 Ficha Médica y Cuidados</span>
+      <!-- Bloque 2: Ficha Médica -->
+      <div class="border border-slate-200 rounded-lg p-3 space-y-2 bg-white">
+        <h5 class="text-[11px] font-bold text-slate-700 uppercase tracking-wide border-b border-slate-100 pb-1 flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-3-3v6m-9 1V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+          </svg>
+          Ficha Médica
+        </h5>
+        <div>
+          <span class="text-[11px] text-slate-500 block">Alergias Registradas:</span>
+          <span id="exp-alergias" class="text-xs font-medium text-slate-800">---</span>
         </div>
         <div>
-          <span class="text-[11px] font-semibold text-slate-500 block">Alergias Conocidas:</span>
-          <span id="exp-alergias" class="text-xs font-semibold text-slate-800">---</span>
-        </div>
-        <div>
-          <span class="text-[11px] font-semibold text-slate-500 block">Condiciones Médicas / Padecimientos:</span>
-          <span id="exp-condiciones" class="text-xs font-semibold text-slate-800">---</span>
+          <span class="text-[11px] text-slate-500 block">Condiciones o Padecimientos:</span>
+          <span id="exp-condiciones" class="text-xs font-medium text-slate-800">---</span>
         </div>
       </div>
     </div>
 
     <!-- Bloque 3: Datos de Contacto y Tutor Legal -->
-    <div class="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-xs">
-      <div class="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-1.5">
-        <span>👨‍👩‍👧 Padre, Madre o Encargado(a) Legal</span>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+    <div class="border border-slate-200 rounded-lg p-3 space-y-1.5 bg-white">
+      <h5 class="text-[11px] font-bold text-slate-700 uppercase tracking-wide border-b border-slate-100 pb-1 flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+        Información del Responsable
+      </h5>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5 text-xs">
         <div>
-          <span class="text-[11px] font-semibold text-slate-500 block">Nombre del Tutor:</span>
-          <span id="exp-encargado" class="text-xs font-bold text-slate-800">---</span>
+          <span class="text-[11px] text-slate-500 block">Nombre del Tutor:</span>
+          <span id="exp-encargado" class="font-medium text-slate-800">---</span>
         </div>
         <div>
-          <span class="text-[11px] font-semibold text-slate-500 block">Teléfono de Emergencia:</span>
-          <span id="exp-telefono" class="text-xs font-mono font-bold text-blue-700">---</span>
+          <span class="text-[11px] text-slate-500 block">Teléfono de Contacto:</span>
+          <span id="exp-telefono" class="font-mono font-semibold text-slate-800">---</span>
         </div>
       </div>
     </div>
 
-    <!-- Footer Modal -->
+    <!-- Botones de Acción -->
     <div class="flex items-center justify-between pt-3 border-t border-slate-200">
-      <button type="button" onclick="window.print()" class="px-3.5 py-2 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition flex items-center gap-1.5 shadow-xs">
-        🖨️ Imprimir Expediente
+      <button type="button" onclick="imprimirExpediente()" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition flex items-center gap-1.5 shadow-xs">
+        <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+        </svg>
+        <span>Descargar Expediente (PDF)</span>
       </button>
       <button type="button" onclick="closeModal('modal-expediente')" class="px-4 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg transition">
-        Cerrar Expediente
+        Cerrar
       </button>
     </div>
   </div>
@@ -309,7 +328,7 @@
       <!-- Ficha Médica: Alergias y Condiciones -->
       <div class="bg-amber-50/50 p-3.5 rounded-xl border border-amber-200 space-y-3">
         <h4 class="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-          <span>🩺 Ficha Médica Escolar</span>
+          <span>Ficha Médica Escolar</span>
         </h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -429,7 +448,7 @@
     if (el) el.classList.add('hidden'); 
   }
 
-  // Visualización Completa del Expediente (CONSULTA Y ORGANIZACIÓN)
+  // Visualización del Expediente
   function openExpedienteModal(id, nie, nombre, grado, fechaNac, direccion, alergias, condiciones, encargado, telefono) {
     document.getElementById('exp-nie').textContent = nie || '---';
     document.getElementById('exp-nombre').textContent = nombre || '---';
@@ -444,14 +463,118 @@
     const saludBadge = document.getElementById('exp-salud-badge');
     if ((alergias && alergias !== 'Ninguna conocida' && alergias !== 'No especificada' && alergias !== 'Ninguna') ||
         (condiciones && condiciones !== 'Ninguna reportada' && condiciones !== 'No especificada' && condiciones !== 'Ninguna')) {
-      saludBadge.className = 'inline-block text-xs font-bold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full mt-0.5 border border-amber-300';
-      saludBadge.textContent = '⚠️ Alertas Médicas';
+      saludBadge.className = 'inline-block text-xs font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200';
+      saludBadge.textContent = 'Observaciones registradas';
     } else {
-      saludBadge.className = 'inline-block text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full mt-0.5 border border-emerald-300';
-      saludBadge.textContent = '✓ Sin novedades de salud';
+      saludBadge.className = 'inline-block text-xs font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200';
+      saludBadge.textContent = 'Sin observaciones';
     }
 
     openModal('modal-expediente');
+  }
+
+  // Generación e Impresión Limpia de Expediente para PDF
+  function imprimirExpediente() {
+    const nombre = document.getElementById('exp-nombre').textContent;
+    const nie = document.getElementById('exp-nie').textContent;
+    const grado = document.getElementById('exp-grado').textContent;
+    const fechaNac = document.getElementById('exp-fecha-nac').textContent;
+    const direccion = document.getElementById('exp-direccion').textContent;
+    const alergias = document.getElementById('exp-alergias').textContent;
+    const condiciones = document.getElementById('exp-condiciones').textContent;
+    const encargado = document.getElementById('exp-encargado').textContent;
+    const telefono = document.getElementById('exp-telefono').textContent;
+
+    const w = window.open('', '_blank');
+    w.document.write(`
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <title>Expediente - ${nombre}</title>
+        <style>
+          @page { size: letter portrait; margin: 18mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0f172a; margin: 0; padding: 20px; font-size: 13px; line-height: 1.5; }
+          .header { border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 18px; }
+          .header h1 { font-size: 17px; margin: 0; color: #0f172a; letter-spacing: -0.02em; }
+          .header p { font-size: 12px; color: #64748b; margin: 3px 0 0 0; }
+          .banner { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px 14px; margin-bottom: 16px; }
+          .banner h2 { font-size: 15px; margin: 0 0 5px 0; color: #0f172a; }
+          .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: #e2e8f0; color: #1e293b; margin-right: 6px; }
+          .grid { display: flex; gap: 14px; margin-bottom: 14px; }
+          .col { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px 14px; background: #ffffff; }
+          .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 9px; }
+          .field { margin-bottom: 8px; }
+          .field:last-child { margin-bottom: 0; }
+          .label { font-size: 11px; color: #64748b; display: block; margin-bottom: 2px; }
+          .value { font-weight: 600; color: #0f172a; font-size: 12px; }
+          .footer { margin-top: 30px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Complejo Educativo Santa Sofía</h1>
+          <p>Registro Académico &bull; Expediente del Estudiante</p>
+        </div>
+
+        <div class="banner">
+          <h2>${nombre}</h2>
+          <div>
+            <span class="badge">NIE: ${nie}</span>
+            <span class="badge">Grado y Sección: ${grado}</span>
+            <span class="badge">Ciclo Lectivo 2026</span>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="col">
+            <div class="section-title">Datos Personales y Domicilio</div>
+            <div class="field">
+              <span class="label">Fecha de Nacimiento</span>
+              <span class="value">${fechaNac}</span>
+            </div>
+            <div class="field">
+              <span class="label">Dirección de Residencia</span>
+              <span class="value">${direccion}</span>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="section-title">Ficha Médica</div>
+            <div class="field">
+              <span class="label">Alergias Registradas</span>
+              <span class="value">${alergias}</span>
+            </div>
+            <div class="field">
+              <span class="label">Condiciones o Padecimientos</span>
+              <span class="value">${condiciones}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="col" style="margin-bottom: 14px;">
+          <div class="section-title">Información del Responsable</div>
+          <div class="grid" style="margin-bottom: 0;">
+            <div style="flex: 1;">
+              <span class="label">Nombre del Tutor o Encargado</span>
+              <span class="value">${encargado}</span>
+            </div>
+            <div style="flex: 1;">
+              <span class="label">Teléfono de Contacto</span>
+              <span class="value">${telefono}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          Documento emitido por el sistema de control escolar para archivo y consulta académica.
+        </div>
+      </body>
+      </html>
+    `);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); }, 250);
   }
 
   // Modificación / Actualización de Expediente
@@ -469,12 +592,12 @@
     openModal('modal-edit');
   }
 
-  // Verificación Interactiva de NIE Oficial
+  // Verificación Interactiva de NIE
   function validarFormatoNIE(val) {
     const status = document.getElementById('nie-status');
     const clean = (val || '').replace(/\D/g, '');
     if (clean.length >= 7 && clean.length <= 9) {
-      status.innerHTML = '<span class="text-emerald-600 font-bold">✓ Formato MINED Válido (' + clean.length + ' dígitos)</span>';
+      status.innerHTML = '<span class="text-emerald-600 font-bold">Formato MINED Válido (' + clean.length + ' dígitos)</span>';
     } else if (clean.length > 0) {
       status.innerHTML = '<span class="text-amber-600 font-semibold">Ingrese entre 7 y 9 dígitos numéricos (' + clean.length + '/7-9)</span>';
     } else {
