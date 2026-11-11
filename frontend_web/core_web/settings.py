@@ -23,9 +23,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-v=x40($fk-0z4=xq@8r=z=5nn($bpt^coqon2$$u4q_xn)^xez'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+import os
+DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() in ('true', '1')
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    'santasofia-escolar.northcentralus.cloudapp.azure.com',
+    '130.131.113.202',
+    'localhost',
+    '127.0.0.1',
+    '*',
+]
 
 CSRF_TRUSTED_ORIGINS = [
     'https://santasofia-escolar.northcentralus.cloudapp.azure.com',
@@ -63,7 +70,7 @@ ROOT_URLCONF = 'core_web.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'portal' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

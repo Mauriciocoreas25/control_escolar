@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error en el Servidor (500) • Complejo Educativo Santa Sofía</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-800 min-h-screen flex items-center justify-center p-4 antialiased">
+  <div class="w-full max-w-md">
+    <div class="bg-white p-8 rounded-2xl shadow-2xl border border-slate-100 text-center space-y-6">
+      
+      <!-- Icono de Estado -->
+      <div class="w-20 h-20 mx-auto rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-200 shadow-sm">
+        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+
+      <!-- Título y Mensaje -->
+      <div class="space-y-2">
+        <span class="inline-block px-3 py-1 text-xs font-bold uppercase tracking-wider text-rose-700 bg-rose-100 rounded-full">Error 500</span>
+        <h1 class="text-xl font-bold text-slate-900">Inconveniente Temporal</h1>
+        <p class="text-sm text-slate-500 leading-relaxed">
+          Ocurrió un problema al procesar la solicitud en el servidor. Por favor, intenta nuevamente en unos momentos.
+        </p>
+      </div>
+
+      <!-- Separador -->
+      <div class="border-t border-slate-100"></div>
+
+      <!-- Botones de Acción -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <a href="/" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-semibold text-sm transition shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+          Ir al Inicio
+        </a>
+        <button onclick="window.location.reload()" class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-sm transition">
+          Reintentar
+        </button>
+      </div>
+
+      <!-- Pie Institucional -->
+      <p class="text-xs text-slate-400">
+        Complejo Educativo Santa Sofía &bull; Control Escolar
+      </p>
+    </div>
+  </div>
+</body>
+</html>
