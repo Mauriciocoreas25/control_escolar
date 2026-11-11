@@ -1623,6 +1623,41 @@ def aulas_horarios_view(request):
     asignaturas = api_client.get_asignaturas()
     anios = api_client.get_anios()
 
+    import re
+    def _calc_sec_key(texto):
+        if not texto: return ""
+        num = re.findall(r'\d+', str(texto))
+        n = num[0] if num else ""
+        l_match = re.search(r'secci[oó]n\s*([a-zA-Z])', str(texto), re.I)
+        if not l_match:
+            l_match = re.search(r'[\s\-\(]([a-zA-Z])[\)\s]?$', str(texto), re.I)
+        l = (l_match.group(1) if l_match else "").upper()
+        return f"{n}_{l}"
+
+    # Asignar sec_key a cada sección
+    for s in secciones:
+        s['sec_key'] = _calc_sec_key(f"{s.get('grado', '')} {s.get('seccion', '')}")
+
+    # Mapeo de profesores por nombre a su ID
+    prof_map = {}
+    for p in profesores:
+        nom = p.get('nombre', '').strip().lower()
+        clean = re.sub(r'^(lic\.|prof\.|ing\.)\s*', '', nom).strip()
+        prof_map[clean] = str(p.get('id'))
+
+    # Asignar profesor_id y sec_key a cada asignatura
+    for a in asignaturas:
+        a['sec_key'] = _calc_sec_key(a.get('grado_seccion', ''))
+        nom_p = a.get('profesor_nombre', '').strip().lower()
+        clean_p = re.sub(r'^(lic\.|prof\.|ing\.)\s*', '', nom_p).strip()
+        pid = prof_map.get(clean_p)
+        if not pid:
+            for k, v in prof_map.items():
+                if k in clean_p or clean_p in k:
+                    pid = v
+                    break
+        a['profesor_id'] = pid or ""
+
     # Organizar secciones por ciclo para selector visual rápido
     ciclos_secciones = [
         {

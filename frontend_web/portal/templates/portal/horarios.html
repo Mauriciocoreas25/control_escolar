@@ -406,9 +406,9 @@
       
       <div>
         <label class="block text-xs font-bold text-slate-700 mb-1">Grado y Sección *</label>
-        <select name="grado_seccion_id" id="modal-seccion-select" required onchange="actualizarMateriasPorSeccion()" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
+        <select name="grado_seccion_id" id="modal-seccion-select" required onchange="onSeccionChange()" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
           {% for s in secciones %}
-          <option value="{{ s.id }}" data-grado-seccion="{{ s.grado }} {{ s.seccion }}" {% if seccion_id == s.id %}selected{% endif %}>
+          <option value="{{ s.id }}" data-sec-key="{{ s.sec_key|default:'' }}" {% if seccion_id == s.id %}selected{% endif %}>
             {{ s.grado }} - {{ s.seccion }} (Salón: {{ s.aula_codigo|default:"Sin aula" }})
           </option>
           {% endfor %}
@@ -418,12 +418,8 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Materia / Asignatura *</label>
-          <select name="materia_id" id="modal-materia-select" required onchange="autoSeleccionarDocente()" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
-            {% for a in asignaturas %}
-            <option value="{{ a.id }}" data-profesor="{{ a.profesor_nombre|default:'' }}" data-grado-seccion="{{ a.grado_seccion|default:'' }}">
-              {{ a.nombre }} ({{ a.codigo }}){% if a.profesor_nombre and a.profesor_nombre != 'Sin asignar' %} • [{{ a.profesor_nombre }}]{% endif %}
-            </option>
-            {% endfor %}
+          <select name="materia_id" id="modal-materia-select" required onchange="onMateriaChange()" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
+            <!-- Cargado dinámicamente con JavaScript -->
           </select>
         </div>
 
@@ -432,9 +428,9 @@
             <span>Docente Titular *</span>
             <span id="docente-auto-badge" class="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 hidden">✓ Carga Académica</span>
           </label>
-          <select name="profesor_id" id="modal-profesor-select" required class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
+          <select name="profesor_id" id="modal-profesor-select" required onchange="onDocenteChange()" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
             {% for p in profesores %}
-            <option value="{{ p.id }}" data-nombre="{{ p.nombre }}">{{ p.nombre }}</option>
+            <option value="{{ p.id }}">{{ p.nombre }}</option>
             {% endfor %}
           </select>
         </div>
@@ -550,89 +546,35 @@
 {% endif %}
 
 <script>
+const TODAS_MATERIAS = [
+  {% for a in asignaturas %}
+  {
+    id: {{ a.id }},
+    nombre: "{{ a.nombre|escapejs }}",
+    codigo: "{{ a.codigo|escapejs }}",
+    grado_seccion: "{{ a.grado_seccion|escapejs }}",
+    sec_key: "{{ a.sec_key|default:''|escapejs }}",
+    profesor_nombre: "{{ a.profesor_nombre|default:''|escapejs }}",
+    profesor_id: "{{ a.profesor_id|default:''|escapejs }}"
+  }{% if not forloop.last %},{% endif %}
+  {% endfor %}
+];
+
 function openModal(id) {
   const el = document.getElementById(id);
   if (el) {
     el.classList.remove('hidden');
     if (id === 'modal-horario') {
-      actualizarMateriasPorSeccion();
+      onSeccionChange();
     }
   }
 }
 
-function normalizarTexto(txt) {
-  return (txt || '').toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/lic\.\s*|prof\.\s*|ing\.\s*/g, '')
-    .trim();
-}
-
-function autoSeleccionarDocente() {
-  const matSelect = document.getElementById('modal-materia-select');
-  const profSelect = document.getElementById('modal-profesor-select');
-  const badge = document.getElementById('docente-auto-badge');
-  if (!matSelect || !profSelect) return;
-
-  const selectedOpt = matSelect.options[matSelect.selectedIndex];
-  if (!selectedOpt) return;
-
-  const profAsignado = normalizarTexto(selectedOpt.getAttribute('data-profesor'));
-  if (!profAsignado || profAsignado === 'sin asignar') {
-    if (badge) badge.classList.add('hidden');
-    return;
-  }
-
-  let matchFound = false;
-  for (let i = 0; i < profSelect.options.length; i++) {
-    const opt = profSelect.options[i];
-    const optNombre = normalizarTexto(opt.getAttribute('data-nombre') || opt.text);
-    if (optNombre.includes(profAsignado) || profAsignado.includes(optNombre)) {
-      profSelect.selectedIndex = i;
-      matchFound = true;
-      break;
-    }
-  }
-
-  if (matchFound && badge) {
-    badge.classList.remove('hidden');
-  } else if (badge) {
-    badge.classList.add('hidden');
-  }
-}
-
-function actualizarMateriasPorSeccion() {
-  const secSelect = document.getElementById('modal-seccion-select');
-  const matSelect = document.getElementById('modal-materia-select');
-  if (!secSelect || !matSelect) return;
-
-  const secOpt = secSelect.options[secSelect.selectedIndex];
-  const secNombre = normalizarTexto(secOpt ? secOpt.getAttribute('data-grado-seccion') : '');
-
-  let primeraVisible = -1;
-  for (let i = 0; i < matSelect.options.length; i++) {
-    const opt = matSelect.options[i];
-    const matSec = normalizarTexto(opt.getAttribute('data-grado-seccion'));
-    
-    // Si coincide con la sección o está marcada como General
-    if (!matSec || matSec === 'general' || !secNombre || matSec.includes(secNombre) || secNombre.includes(matSec)) {
-      opt.hidden = false;
-      opt.disabled = false;
-      if (primeraVisible === -1) primeraVisible = i;
-    } else {
-      opt.hidden = true;
-      opt.disabled = true;
-    }
-  }
-
-  if (primeraVisible !== -1) {
-    matSelect.selectedIndex = primeraVisible;
-  }
-  autoSeleccionarDocente();
-}
 function closeModal(id) {
   const el = document.getElementById(id);
   if (el) el.classList.add('hidden');
 }
+
 function aplicarBloque(val) {
   if (!val) return;
   const parts = val.split('|');
@@ -641,6 +583,94 @@ function aplicarBloque(val) {
   if (ini && fin) {
     ini.value = parts[0];
     fin.value = parts[1];
+  }
+}
+
+function onSeccionChange() {
+  const secSelect = document.getElementById('modal-seccion-select');
+  const matSelect = document.getElementById('modal-materia-select');
+  if (!secSelect || !matSelect) return;
+
+  const secOpt = secSelect.options[secSelect.selectedIndex];
+  const secKey = secOpt ? secOpt.getAttribute('data-sec-key') : '';
+
+  // Filtrar materias por sección
+  let filtradas = TODAS_MATERIAS.filter(m => m.sec_key === secKey);
+  if (filtradas.length === 0) {
+    // Si no hay específicas, mostrar todas para no limitar al usuario
+    filtradas = TODAS_MATERIAS;
+  }
+
+  matSelect.innerHTML = '';
+  filtradas.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    const profTag = (m.profesor_nombre && m.profesor_nombre !== 'Sin asignar') ? ` • [${m.profesor_nombre}]` : '';
+    opt.textContent = `${m.nombre} (${m.codigo})${profTag}`;
+    opt.setAttribute('data-profesor-id', m.profesor_id || '');
+    opt.setAttribute('data-profesor-nombre', m.profesor_nombre || '');
+    opt.setAttribute('data-sec-key', m.sec_key || '');
+    matSelect.appendChild(opt);
+  });
+
+  // Al poblar las materias, auto-seleccionar el docente titular de la primera
+  onMateriaChange();
+}
+
+function onMateriaChange() {
+  const matSelect = document.getElementById('modal-materia-select');
+  const profSelect = document.getElementById('modal-profesor-select');
+  const badge = document.getElementById('docente-auto-badge');
+  if (!matSelect || !profSelect) return;
+
+  const opt = matSelect.options[matSelect.selectedIndex];
+  if (!opt) return;
+
+  const profId = opt.getAttribute('data-profesor-id');
+  if (profId) {
+    profSelect.value = profId;
+    if (badge) badge.classList.remove('hidden');
+  } else {
+    if (badge) badge.classList.add('hidden');
+  }
+}
+
+function onDocenteChange() {
+  const matSelect = document.getElementById('modal-materia-select');
+  const profSelect = document.getElementById('modal-profesor-select');
+  const badge = document.getElementById('docente-auto-badge');
+  if (!matSelect || !profSelect) return;
+
+  const selectedProfId = profSelect.value;
+  
+  // Buscar si alguna de las materias de la lista actual pertenece a este docente
+  let matchIdx = -1;
+  for (let i = 0; i < matSelect.options.length; i++) {
+    if (matSelect.options[i].getAttribute('data-profesor-id') === selectedProfId) {
+      matchIdx = i;
+      break;
+    }
+  }
+
+  if (matchIdx !== -1) {
+    matSelect.selectedIndex = matchIdx;
+    if (badge) badge.classList.remove('hidden');
+  } else {
+    // Si no está en las materias de la sección actual, buscar en todo el catálogo de materias
+    const matGlobal = TODAS_MATERIAS.find(m => m.profesor_id === selectedProfId);
+    if (matGlobal) {
+      // Agregar temporalmente la materia al select y seleccionarla
+      const opt = document.createElement('option');
+      opt.value = matGlobal.id;
+      opt.textContent = `${matGlobal.nombre} (${matGlobal.codigo}) • [${matGlobal.profesor_nombre}]`;
+      opt.setAttribute('data-profesor-id', matGlobal.profesor_id || '');
+      opt.setAttribute('data-profesor-nombre', matGlobal.profesor_nombre || '');
+      matSelect.appendChild(opt);
+      matSelect.value = matGlobal.id;
+      if (badge) badge.classList.remove('hidden');
+    } else {
+      if (badge) badge.classList.add('hidden');
+    }
   }
 }
 </script>
