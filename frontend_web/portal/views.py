@@ -191,7 +191,11 @@ def estudiante_create(request):
             "nombre_completo": nombre_completo,
             "grado_seccion": grado_seccion,
             "encargado": encargado,
-            "telefono": telefono
+            "telefono": telefono,
+            "fecha_nacimiento": request.POST.get("fecha_nacimiento", "").strip() or "No especificada",
+            "direccion": request.POST.get("direccion", "").strip() or "No especificada",
+            "alergias": request.POST.get("alergias", "").strip() or "Ninguna conocida",
+            "condiciones_medicas": request.POST.get("condiciones_medicas", "").strip() or "Ninguna reportada",
         }
         success, res = api_client.create_estudiante(data)
         if success:
@@ -209,12 +213,23 @@ def estudiante_update(request, id):
         return redirect('estudiantes_list')
 
     if request.method == "POST":
+        nombres = request.POST.get("nombres", "").strip()
+        apellidos = request.POST.get("apellidos", "").strip()
+        if nombres or apellidos:
+            nom_comp = f"{nombres} {apellidos}".strip()
+        else:
+            nom_comp = (request.POST.get("nombre_completo") or request.POST.get("nombre") or "").strip()
+
         data = {
             "nie": request.POST.get("nie", "").strip(),
-            "nombre_completo": (request.POST.get("nombre_completo") or request.POST.get("nombre") or "").strip(),
+            "nombre_completo": nom_comp,
             "grado_seccion": request.POST.get("grado_seccion", "").strip(),
             "encargado": request.POST.get("encargado", "").strip(),
-            "telefono": request.POST.get("telefono", "").strip()
+            "telefono": request.POST.get("telefono", "").strip(),
+            "fecha_nacimiento": request.POST.get("fecha_nacimiento", "").strip() or "No especificada",
+            "direccion": request.POST.get("direccion", "").strip() or "No especificada",
+            "alergias": request.POST.get("alergias", "").strip() or "Ninguna conocida",
+            "condiciones_medicas": request.POST.get("condiciones_medicas", "").strip() or "Ninguna reportada",
         }
         success, _ = api_client.update_estudiante(id, data)
         if success:
@@ -1298,6 +1313,54 @@ def asistencia_consolidado_view(request):
         "rol_actual": rol,
     }
     return render(request, "portal/asistencia_consolidado.html", context)
+
+@login_required
+def asistencia_export_pdf(request):
+    rol = get_role(request.user)
+    estudiantes_raw = api_client.get_estudiantes() or []
+    estudiantes_map = {e.get("id"): e for e in estudiantes_raw}
+    
+    seccion_filtro = request.GET.get("seccion", "").strip()
+    fecha_filtro = request.GET.get("fecha", "").strip()
+    estado_filtro = request.GET.get("estado", "").strip()
+    
+    asistencias_raw = api_client.get_asistencias() or []
+    
+    registros = []
+    for a in asistencias_raw:
+        est_id = a.get("estudiante_id")
+        est = estudiantes_map.get(est_id, {})
+        reg = {
+            "id": a.get("id"),
+            "estudiante_id": est_id,
+            "estudiante_nombre": est.get("nombre_completo", f"Estudiante #{est_id}"),
+            "nie": est.get("nie", "---"),
+            "grado_seccion": est.get("grado_seccion", "No asignado"),
+            "fecha": a.get("fecha"),
+            "estado": a.get("estado", "Presente"),
+            "observacion": a.get("observacion") or "Asistencia regular",
+        }
+        
+        if seccion_filtro and reg["grado_seccion"] != seccion_filtro:
+            continue
+        if fecha_filtro and str(reg["fecha"]) != fecha_filtro:
+            continue
+        if estado_filtro and reg["estado"].lower() != estado_filtro.lower():
+            continue
+            
+        registros.append(reg)
+        
+    registros.sort(key=lambda r: str(r.get("fecha", "")), reverse=True)
+    institucion = ConfiguracionInstitucion.get_activa()
+    filtros = {
+        "seccion": seccion_filtro,
+        "fecha": fecha_filtro,
+        "estado": estado_filtro
+    }
+    pdf_bytes = reports.generar_pdf_asistencia(registros, institucion, filtros)
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="Consolidado_Asistencia.pdf"'
+    return response
 
 
 def get_calificaciones_data(request):

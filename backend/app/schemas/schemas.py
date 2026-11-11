@@ -7,6 +7,11 @@ class EstudianteCreate(BaseModel):
     grado_seccion: str
     encargado: Optional[str] = None
     telefono: Optional[str] = None
+    fecha_nacimiento: Optional[str] = None
+    direccion: Optional[str] = None
+    alergias: Optional[str] = None
+    condiciones_medicas: Optional[str] = None
+
 class EstudianteResponse(EstudianteCreate):
     id: int
     class Config:

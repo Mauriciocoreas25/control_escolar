@@ -216,6 +216,10 @@ CREATE TABLE `estudiantes` (
   `grado_seccion` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `encargado` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `telefono` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `fecha_nacimiento` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'No especificada',
+  `direccion` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT 'No especificada',
+  `alergias` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT 'Ninguna conocida',
+  `condiciones_medicas` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT 'Ninguna reportada',
   PRIMARY KEY (`id`),
   UNIQUE KEY `ix_estudiantes_nie` (`nie`),
   KEY `ix_estudiantes_id` (`id`)

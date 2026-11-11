@@ -51,6 +51,7 @@ urlpatterns = [
     path('boletas/export/pdf/', views.boletas_export_pdf, name='boletas_export_pdf'),
     path('boletas/export/excel/', views.boletas_export_excel, name='boletas_export_excel'),
     path('reportes/asistencia/', views.asistencia_consolidado_view, name='asistencia_consolidado'),
+    path('reportes/asistencia/export/pdf/', views.asistencia_export_pdf, name='asistencia_export_pdf'),
     path('reportes/calificaciones/', views.calificaciones_consolidado_view, name='calificaciones_consolidado'),
     path('reportes/calificaciones/export/pdf/', views.calificaciones_export_pdf, name='calificaciones_export_pdf'),
     path('reportes/calificaciones/export/excel/', views.calificaciones_export_excel, name='calificaciones_export_excel'),
