@@ -620,9 +620,9 @@ def generar_pdf_boletas(boletas_data, institucion, periodo_nombre="Período 1"):
                             n_col = "#047857" if n_val >= 6.0 else "#dc2626"
                             row.append(Paragraph(f"<font color='{n_col}'><b>{n_val:.1f}</b></font>", styles['td_center']))
                         else:
-                            row.append(Paragraph("<font color='#94a3b8'>- (0.0)</font>", styles['td_center']))
+                            row.append(Paragraph("<font color='#94a3b8'>-</font>", styles['td_center']))
                     else:
-                        row.append(Paragraph("-", styles['td_center']))
+                        row.append(Paragraph("<font color='#94a3b8'>-</font>", styles['td_center']))
 
                 row.append(Paragraph(f"<b>{p_val:.1f}</b>", styles['td_center']))
                 row.append(Paragraph(res_str, styles['td_center']))

@@ -1125,18 +1125,41 @@ def get_boletas_data(seccion_filtro=None, periodo_id=None, estudiante_id=None):
             c_list = califs_by_est_asig.get((e_id, a_id), [])
 
             # Actividades definidas para esta materia y período
-            defined_acts = acts_by_asig.get(a_id, [])
+            defined_acts = list(acts_by_asig.get(a_id, []))
 
-            if not defined_acts:
-                # Revisar tipos de evaluación existentes en calificaciones de esta materia
+            # Regla de negocio institucional:
+            # Todo período escolar se compone de COMO MÍNIMO 3 evaluaciones
+            # (Actividad 1: 35%, Actividad 2: 35%, Actividad 3: 30%, o división equitativa).
+            # Si el docente ha definido 4 o más actividades, se usan las actividades definidas.
+            # Si se han definido 1 o 2 en actividades_evaluativas, se completan las faltantes para llegar a como mínimo 3.
+            # Si no hay actividades en actividades_evaluativas:
+            #   - Si en calificaciones_raw existen al menos 3 tipos distintos, se usan esos tipos.
+            #   - Si existen menos de 3 tipos (ej. solo se ha ingresado 1 evaluación), se aplican obligatoriamente
+            #     las 3 evaluaciones estándar del período institucional.
+            if len(defined_acts) >= 3:
+                pass
+            elif len(defined_acts) > 0:
+                peso_existente = sum(float(act.get("ponderacion") or 0.0) for act in defined_acts)
+                peso_restante = max(0.0, 100.0 - peso_existente)
+                faltantes = 3 - len(defined_acts)
+                peso_faltante = round(peso_restante / faltantes, 1) if faltantes > 0 else 0.0
+                for ev_idx in range(len(defined_acts) + 1, 4):
+                    defined_acts.append({
+                        "nombre": f"Actividad {ev_idx} ({peso_faltante}%)",
+                        "tipo": f"Actividad {ev_idx}",
+                        "ponderacion": peso_faltante,
+                    })
+            else:
                 tipos_en_califs = []
                 for c in calificaciones_raw:
                     if c.get("asignatura_id") == a_id and (not pid or c.get("periodo_id") == pid):
                         t = c.get("tipo_evaluacion")
                         if t and t not in tipos_en_califs:
                             tipos_en_califs.append(t)
-                if tipos_en_califs:
-                    defined_acts = [{"nombre": t, "tipo": "Evaluación", "ponderacion": round(100.0 / len(tipos_en_califs), 1)} for t in tipos_en_califs]
+
+                if len(tipos_en_califs) >= 3:
+                    peso_eq = round(100.0 / len(tipos_en_califs), 1)
+                    defined_acts = [{"nombre": t, "tipo": "Evaluación", "ponderacion": peso_eq} for t in tipos_en_califs]
                 else:
                     defined_acts = [
                         {"nombre": "Actividad 1: Examen Parcial (35%)", "tipo": "Examen", "ponderacion": 35.0},
@@ -1144,35 +1167,56 @@ def get_boletas_data(seccion_filtro=None, periodo_id=None, estudiante_id=None):
                         {"nombre": "Actividad 3: Proyecto Aplicado (30%)", "tipo": "Proyecto", "ponderacion": 30.0},
                     ]
 
-            num_evals = len(defined_acts)
+            num_evals = max(3, len(defined_acts))
             evaluaciones_alumno = []
             suma_notas = 0.0
             suma_ponderada = 0.0
             tiene_ponderaciones = all((act.get("ponderacion") or 0) > 0 for act in defined_acts)
             suma_pesos = sum(act.get("ponderacion") or 0 for act in defined_acts)
 
-            for act in defined_acts:
+            used_calif_ids = set()
+
+            for act_idx, act in enumerate(defined_acts):
                 act_nom = act.get("nombre", "")
                 act_tipo = act.get("tipo", "Evaluación")
                 act_pond = act.get("ponderacion", 0.0)
 
                 matching_calif = None
+                # 1. Búsqueda por coincidencia exacta
                 for c in c_list:
+                    if c.get("id") in used_calif_ids:
+                        continue
                     c_tipo = c.get("tipo_evaluacion") or ""
                     if c_tipo.strip().lower() == act_nom.strip().lower():
                         matching_calif = c
                         break
-                    t_low = c_tipo.lower()
-                    nom_low = act_nom.lower()
-                    if ("examen" in nom_low or "parcial" in nom_low or "actividad 1" in nom_low) and ("examen" in t_low or "parcial" in t_low or "actividad 1" in t_low):
-                        matching_calif = c
-                        break
-                    elif ("tarea" in nom_low or "guía" in nom_low or "guia" in nom_low or "actividad 2" in nom_low) and ("tarea" in t_low or "gu" in t_low or "actividad 2" in t_low):
-                        matching_calif = c
-                        break
-                    elif ("proyecto" in nom_low or "laboratorio" in nom_low or "actividad 3" in nom_low) and ("proyecto" in t_low or "lab" in t_low or "actividad 3" in t_low):
-                        matching_calif = c
-                        break
+
+                # 2. Búsqueda por coincidencia de palabras clave
+                if not matching_calif:
+                    for c in c_list:
+                        if c.get("id") in used_calif_ids:
+                            continue
+                        c_tipo = c.get("tipo_evaluacion") or ""
+                        t_low = c_tipo.lower()
+                        nom_low = act_nom.lower()
+                        if ("examen" in nom_low or "parcial" in nom_low or "actividad 1" in nom_low or "act. 1" in nom_low) and ("examen" in t_low or "parcial" in t_low or "actividad 1" in t_low or "act. 1" in t_low):
+                            matching_calif = c
+                            break
+                        elif ("tarea" in nom_low or "guía" in nom_low or "guia" in nom_low or "actividad 2" in nom_low or "act. 2" in nom_low) and ("tarea" in t_low or "gu" in t_low or "actividad 2" in t_low or "act. 2" in t_low):
+                            matching_calif = c
+                            break
+                        elif ("proyecto" in nom_low or "laboratorio" in nom_low or "actividad 3" in nom_low or "act. 3" in nom_low) and ("proyecto" in t_low or "lab" in t_low or "actividad 3" in t_low or "act. 3" in t_low):
+                            matching_calif = c
+                            break
+
+                # 3. Fallback por orden secuencial de calificaciones registradas
+                if not matching_calif and act_idx < len(c_list):
+                    c_cand = c_list[act_idx]
+                    if c_cand.get("id") not in used_calif_ids:
+                        matching_calif = c_cand
+
+                if matching_calif:
+                    used_calif_ids.add(matching_calif.get("id"))
 
                 n_val = float(matching_calif.get("nota", 0.0)) if matching_calif is not None else None
 
@@ -1190,7 +1234,7 @@ def get_boletas_data(seccion_filtro=None, periodo_id=None, estudiante_id=None):
                     suma_ponderada += efectiva * (act_pond / suma_pesos)
 
             # Regla de negocio:
-            # Si el alumno tiene notas vacías, cuentan como 0.0 y se divide entre el total K de evaluaciones
+            # Las evaluaciones sin calificar cuentan como 0.0 y el divisor es COMO MÍNIMO 3 (o el total K >= 3)
             if tiene_ponderaciones and abs(suma_pesos - 100.0) < 1.0:
                 m_prom = round(suma_ponderada, 1)
             else:
