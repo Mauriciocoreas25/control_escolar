@@ -35,7 +35,11 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
   void didUpdateWidget(covariant AsistenciaScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.selectedCourse != null && widget.selectedCourse?.id != _cursoActivo?.id) {
-      _cambiarCurso(widget.selectedCourse!);
+      final matchingCourse = _asignaturas.firstWhere(
+        (a) => a.id == widget.selectedCourse!.id,
+        orElse: () => widget.selectedCourse!,
+      );
+      _cambiarCurso(matchingCourse);
     }
   }
 
@@ -337,7 +341,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                                   if (_asignaturas.isNotEmpty)
                                     DropdownButtonHideUnderline(
                                       child: DropdownButton<Asignatura>(
-                                        value: _cursoActivo,
+                                        value: _asignaturas.any((a) => a.id == _cursoActivo?.id) ? _asignaturas.firstWhere((a) => a.id == _cursoActivo?.id) : (_asignaturas.isNotEmpty ? _asignaturas.first : null),
                                         isDense: true,
                                         isExpanded: true,
                                         icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.primaryNavy),

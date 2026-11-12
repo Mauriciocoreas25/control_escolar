@@ -92,6 +92,14 @@ class Asignatura {
       aulaNombre: json['aula_nombre'],
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Asignatura && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 class Estudiante {
@@ -204,6 +212,14 @@ class Periodo {
   }
 
   bool get estaAbierto => estado.toLowerCase() == 'abierto';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Periodo && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 

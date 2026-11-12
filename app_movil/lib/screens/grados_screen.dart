@@ -46,7 +46,11 @@ class _GradosScreenState extends State<GradosScreen> {
   void didUpdateWidget(covariant GradosScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.selectedCourse != null && widget.selectedCourse?.id != _cursoActivo?.id) {
-      _cambiarCursoOPeriodo(nuevoCurso: widget.selectedCourse);
+      final matchingCourse = _asignaturas.firstWhere(
+        (a) => a.id == widget.selectedCourse!.id,
+        orElse: () => widget.selectedCourse!,
+      );
+      _cambiarCursoOPeriodo(nuevoCurso: matchingCourse);
     }
   }
 
@@ -619,7 +623,7 @@ class _GradosScreenState extends State<GradosScreen> {
                                   if (_asignaturas.isNotEmpty)
                                     DropdownButtonHideUnderline(
                                       child: DropdownButton<Asignatura>(
-                                        value: _cursoActivo,
+                                        value: _asignaturas.any((a) => a.id == _cursoActivo?.id) ? _asignaturas.firstWhere((a) => a.id == _cursoActivo?.id) : (_asignaturas.isNotEmpty ? _asignaturas.first : null),
                                         isDense: true,
                                         isExpanded: true,
                                         icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.primaryNavy),
@@ -672,7 +676,7 @@ class _GradosScreenState extends State<GradosScreen> {
                                             if (_periodos.isNotEmpty)
                                               DropdownButtonHideUnderline(
                                                 child: DropdownButton<Periodo>(
-                                                  value: _periodoActivo,
+                                                  value: _periodos.any((p) => p.id == _periodoActivo?.id) ? _periodos.firstWhere((p) => p.id == _periodoActivo?.id) : (_periodos.isNotEmpty ? _periodos.first : null),
                                                   isDense: true,
                                                   items: _periodos.map((p) {
                                                     return DropdownMenuItem<Periodo>(
