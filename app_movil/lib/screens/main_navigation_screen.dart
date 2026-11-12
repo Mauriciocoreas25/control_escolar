@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../models/models.dart';
@@ -966,7 +967,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryBlue,
+              backgroundColor: AppTheme.primaryNavy,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('Guardar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
