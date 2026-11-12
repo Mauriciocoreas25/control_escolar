@@ -1124,125 +1124,53 @@ def get_boletas_data(seccion_filtro=None, periodo_id=None, estudiante_id=None):
             a_id = a.get("id")
             c_list = califs_by_est_asig.get((e_id, a_id), [])
 
-            # Actividades definidas para esta materia y período
-            defined_acts = list(acts_by_asig.get(a_id, []))
+            # Regla de negocio institucional única:
+            # Exactamente 3 evaluaciones por materia en cada período escolar.
+            # El promedio se calcula estrictamente como la suma de las notas dividida entre 3.
+            # Si el estudiante solo realizó 1 evaluación, esa nota se divide entre 3.
+            # Toda evaluación no realizada computa como 0.0.
+            ev1_val = None
+            ev2_val = None
+            ev3_val = None
+            used_ids = set()
 
-            # Regla de negocio institucional:
-            # Todo período escolar se compone de COMO MÍNIMO 3 evaluaciones
-            # (Actividad 1: 35%, Actividad 2: 35%, Actividad 3: 30%, o división equitativa).
-            # Si el docente ha definido 4 o más actividades, se usan las actividades definidas.
-            # Si se han definido 1 o 2 en actividades_evaluativas, se completan las faltantes para llegar a como mínimo 3.
-            # Si no hay actividades en actividades_evaluativas:
-            #   - Si en calificaciones_raw existen al menos 3 tipos distintos, se usan esos tipos.
-            #   - Si existen menos de 3 tipos (ej. solo se ha ingresado 1 evaluación), se aplican obligatoriamente
-            #     las 3 evaluaciones estándar del período institucional.
-            if len(defined_acts) >= 3:
-                pass
-            elif len(defined_acts) > 0:
-                peso_existente = sum(float(act.get("ponderacion") or 0.0) for act in defined_acts)
-                peso_restante = max(0.0, 100.0 - peso_existente)
-                faltantes = 3 - len(defined_acts)
-                peso_faltante = round(peso_restante / faltantes, 1) if faltantes > 0 else 0.0
-                for ev_idx in range(len(defined_acts) + 1, 4):
-                    defined_acts.append({
-                        "nombre": f"Actividad {ev_idx} ({peso_faltante}%)",
-                        "tipo": f"Actividad {ev_idx}",
-                        "ponderacion": peso_faltante,
-                    })
-            else:
-                tipos_en_califs = []
-                for c in calificaciones_raw:
-                    if c.get("asignatura_id") == a_id and (not pid or c.get("periodo_id") == pid):
-                        t = c.get("tipo_evaluacion")
-                        if t and t not in tipos_en_califs:
-                            tipos_en_califs.append(t)
+            # 1. Asignación por coincidencia de tipo/nombre de actividad
+            for c in c_list:
+                t = (c.get("tipo_evaluacion") or "").lower()
+                c_id = c.get("id")
+                nota = float(c.get("nota", 0.0))
+                if ("1" in t or "parcial" in t or "examen" in t) and ev1_val is None:
+                    ev1_val = nota
+                    used_ids.add(c_id)
+                elif ("2" in t or "guia" in t or "guía" in t or "tarea" in t) and ev2_val is None:
+                    ev2_val = nota
+                    used_ids.add(c_id)
+                elif ("3" in t or "proyecto" in t or "lab" in t) and ev3_val is None:
+                    ev3_val = nota
+                    used_ids.add(c_id)
 
-                if len(tipos_en_califs) >= 3:
-                    peso_eq = round(100.0 / len(tipos_en_califs), 1)
-                    defined_acts = [{"nombre": t, "tipo": "Evaluación", "ponderacion": peso_eq} for t in tipos_en_califs]
-                else:
-                    defined_acts = [
-                        {"nombre": "Actividad 1: Examen Parcial (35%)", "tipo": "Examen", "ponderacion": 35.0},
-                        {"nombre": "Actividad 2: Guías y Tareas (35%)", "tipo": "Tarea", "ponderacion": 35.0},
-                        {"nombre": "Actividad 3: Proyecto Aplicado (30%)", "tipo": "Proyecto", "ponderacion": 30.0},
-                    ]
+            # 2. Asignación secuencial de notas restantes para casillas vacías
+            restantes = [c for c in c_list if c.get("id") not in used_ids]
+            if ev1_val is None and restantes:
+                ev1_val = float(restantes.pop(0).get("nota", 0.0))
+            if ev2_val is None and restantes:
+                ev2_val = float(restantes.pop(0).get("nota", 0.0))
+            if ev3_val is None and restantes:
+                ev3_val = float(restantes.pop(0).get("nota", 0.0))
 
-            num_evals = max(3, len(defined_acts))
-            evaluaciones_alumno = []
-            suma_notas = 0.0
-            suma_ponderada = 0.0
-            tiene_ponderaciones = all((act.get("ponderacion") or 0) > 0 for act in defined_acts)
-            suma_pesos = sum(act.get("ponderacion") or 0 for act in defined_acts)
+            # Notas efectivas (0.0 si la evaluación está ausente o vacía)
+            n1_efectiva = ev1_val if ev1_val is not None else 0.0
+            n2_efectiva = ev2_val if ev2_val is not None else 0.0
+            n3_efectiva = ev3_val if ev3_val is not None else 0.0
 
-            used_calif_ids = set()
+            suma_notas = n1_efectiva + n2_efectiva + n3_efectiva
+            m_prom = round(suma_notas / 3.0, 1)
 
-            for act_idx, act in enumerate(defined_acts):
-                act_nom = act.get("nombre", "")
-                act_tipo = act.get("tipo", "Evaluación")
-                act_pond = act.get("ponderacion", 0.0)
-
-                matching_calif = None
-                # 1. Búsqueda por coincidencia exacta
-                for c in c_list:
-                    if c.get("id") in used_calif_ids:
-                        continue
-                    c_tipo = c.get("tipo_evaluacion") or ""
-                    if c_tipo.strip().lower() == act_nom.strip().lower():
-                        matching_calif = c
-                        break
-
-                # 2. Búsqueda por coincidencia de palabras clave
-                if not matching_calif:
-                    for c in c_list:
-                        if c.get("id") in used_calif_ids:
-                            continue
-                        c_tipo = c.get("tipo_evaluacion") or ""
-                        t_low = c_tipo.lower()
-                        nom_low = act_nom.lower()
-                        if ("examen" in nom_low or "parcial" in nom_low or "actividad 1" in nom_low or "act. 1" in nom_low) and ("examen" in t_low or "parcial" in t_low or "actividad 1" in t_low or "act. 1" in t_low):
-                            matching_calif = c
-                            break
-                        elif ("tarea" in nom_low or "guía" in nom_low or "guia" in nom_low or "actividad 2" in nom_low or "act. 2" in nom_low) and ("tarea" in t_low or "gu" in t_low or "actividad 2" in t_low or "act. 2" in t_low):
-                            matching_calif = c
-                            break
-                        elif ("proyecto" in nom_low or "laboratorio" in nom_low or "actividad 3" in nom_low or "act. 3" in nom_low) and ("proyecto" in t_low or "lab" in t_low or "actividad 3" in t_low or "act. 3" in t_low):
-                            matching_calif = c
-                            break
-
-                # 3. Fallback por orden secuencial de calificaciones registradas
-                if not matching_calif and act_idx < len(c_list):
-                    c_cand = c_list[act_idx]
-                    if c_cand.get("id") not in used_calif_ids:
-                        matching_calif = c_cand
-
-                if matching_calif:
-                    used_calif_ids.add(matching_calif.get("id"))
-
-                n_val = float(matching_calif.get("nota", 0.0)) if matching_calif is not None else None
-
-                evaluaciones_alumno.append({
-                    "nombre": act_nom,
-                    "tipo": act_tipo,
-                    "ponderacion": act_pond,
-                    "nota": n_val,
-                    "nota_efectiva": n_val if n_val is not None else 0.0,
-                })
-
-                efectiva = n_val if n_val is not None else 0.0
-                suma_notas += efectiva
-                if tiene_ponderaciones and suma_pesos > 0:
-                    suma_ponderada += efectiva * (act_pond / suma_pesos)
-
-            # Regla de negocio:
-            # Las evaluaciones sin calificar cuentan como 0.0 y el divisor es COMO MÍNIMO 3 (o el total K >= 3)
-            if tiene_ponderaciones and abs(suma_pesos - 100.0) < 1.0:
-                m_prom = round(suma_ponderada, 1)
-            else:
-                m_prom = round(suma_notas / num_evals, 1) if num_evals > 0 else 0.0
-
-            act1 = evaluaciones_alumno[0]["nota"] if len(evaluaciones_alumno) > 0 else None
-            act2 = evaluaciones_alumno[1]["nota"] if len(evaluaciones_alumno) > 1 else None
-            act3 = evaluaciones_alumno[2]["nota"] if len(evaluaciones_alumno) > 2 else None
+            evaluaciones_alumno = [
+                {"nombre": "Actividad 1", "tipo": "Evaluación 1", "nota": ev1_val, "nota_efectiva": n1_efectiva},
+                {"nombre": "Actividad 2", "tipo": "Evaluación 2", "nota": ev2_val, "nota_efectiva": n2_efectiva},
+                {"nombre": "Actividad 3", "tipo": "Evaluación 3", "nota": ev3_val, "nota_efectiva": n3_efectiva},
+            ]
 
             materias_list.append({
                 "id": a_id,
@@ -1250,11 +1178,11 @@ def get_boletas_data(seccion_filtro=None, periodo_id=None, estudiante_id=None):
                 "codigo": a.get("codigo", ""),
                 "profesor_nombre": a.get("profesor_nombre", "Docente asignado"),
                 "evaluaciones": evaluaciones_alumno,
-                "total_evaluaciones": num_evals,
-                "evaluaciones_presentadas": sum(1 for ev in evaluaciones_alumno if ev["nota"] is not None),
-                "act1": act1,
-                "act2": act2,
-                "act3": act3,
+                "total_evaluaciones": 3,
+                "evaluaciones_presentadas": sum(1 for v in [ev1_val, ev2_val, ev3_val] if v is not None),
+                "act1": ev1_val,
+                "act2": ev2_val,
+                "act3": ev3_val,
                 "promedio": m_prom,
                 "aprobado": m_prom >= 6.0,
             })
