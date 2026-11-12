@@ -58,6 +58,16 @@ def listar_calificaciones(
         query = _filter_by_tipo(query, tipo_evaluacion)
     return query.all()
 
+def _canonical_tipo(tipo: Optional[str]) -> str:
+    t = (tipo or "").lower()
+    if "1" in t or "parcial" in t or "examen" in t:
+        return "Actividad 1: Examen Parcial (35%)"
+    elif "2" in t or "tarea" in t or "gu" in t:
+        return "Actividad 2: Guías y Tareas (35%)"
+    elif "3" in t or "proyecto" in t or "lab" in t:
+        return "Actividad 3: Proyecto Aplicado (30%)"
+    return "Actividad 1: Examen Parcial (35%)"
+
 @router.post("/", response_model=CalificacionResponse)
 def registrar_calificacion(calificacion_data: CalificacionCreate, db: Session = Depends(get_db)):
     if calificacion_data.nota < 0.0 or calificacion_data.nota > 10.0:
@@ -65,22 +75,28 @@ def registrar_calificacion(calificacion_data: CalificacionCreate, db: Session = 
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La calificación debe estar comprendida estrictamente entre 0.0 y 10.0."
         )
-    # Buscar si ya existe una calificación para el estudiante, materia y periodo
+
+    # Normalizar al nombre canónico oficial de la actividad
+    can_tipo = _canonical_tipo(calificacion_data.tipo_evaluacion)
+    calificacion_data.tipo_evaluacion = can_tipo
+
+    # Buscar registros existentes para ese estudiante, materia, periodo y casilla
     query = db.query(Calificacion).filter(
         Calificacion.estudiante_id == calificacion_data.estudiante_id,
         Calificacion.asignatura_id == calificacion_data.asignatura_id,
         Calificacion.periodo_id == calificacion_data.periodo_id
     )
-    if calificacion_data.tipo_evaluacion:
-        query_tipo = _filter_by_tipo(query, calificacion_data.tipo_evaluacion)
-        existente = query_tipo.first()
-    else:
-        existente = query.first()
+    query_tipo = _filter_by_tipo(query, can_tipo)
+    matches = query_tipo.order_by(Calificacion.id.asc()).all()
 
-    if existente:
+    if matches:
+        # Prevalece el más reciente
+        existente = matches[-1]
         existente.nota = calificacion_data.nota
-        if calificacion_data.tipo_evaluacion:
-            existente.tipo_evaluacion = calificacion_data.tipo_evaluacion
+        existente.tipo_evaluacion = can_tipo
+        # Eliminar cualquier duplicado previo de esta misma casilla
+        for dup in matches[:-1]:
+            db.delete(dup)
         db.commit()
         db.refresh(existente)
         return existente

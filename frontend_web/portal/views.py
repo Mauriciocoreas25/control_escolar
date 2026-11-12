@@ -1129,34 +1129,27 @@ def get_boletas_data(seccion_filtro=None, periodo_id=None, estudiante_id=None):
             # El promedio se calcula estrictamente como la suma de las notas dividida entre 3.
             # Si el estudiante solo realizó 1 evaluación, esa nota se divide entre 3.
             # Toda evaluación no realizada computa como 0.0.
+            # Ordenar registros por id ascendente para que el registro más reciente prevalezca
+            sorted_clist = sorted(c_list, key=lambda x: x.get("id", 0))
+
             ev1_val = None
             ev2_val = None
             ev3_val = None
-            used_ids = set()
 
-            # 1. Asignación por coincidencia de tipo/nombre de actividad
-            for c in c_list:
+            # Asignación estricta y exclusiva por casilla oficial:
+            # - Actividad 1 solo va a la casilla 1
+            # - Actividad 2 solo va a la casilla 2
+            # - Actividad 3 solo va a la casilla 3
+            # Nunca se reasignan notas sobrantes ni duplicadas a casillas distintas
+            for c in sorted_clist:
                 t = (c.get("tipo_evaluacion") or "").lower()
-                c_id = c.get("id")
                 nota = float(c.get("nota", 0.0))
-                if ("1" in t or "parcial" in t or "examen" in t) and ev1_val is None:
+                if "1" in t or "parcial" in t or "examen" in t:
                     ev1_val = nota
-                    used_ids.add(c_id)
-                elif ("2" in t or "guia" in t or "guía" in t or "tarea" in t) and ev2_val is None:
+                elif "2" in t or "guia" in t or "guía" in t or "tarea" in t:
                     ev2_val = nota
-                    used_ids.add(c_id)
-                elif ("3" in t or "proyecto" in t or "lab" in t) and ev3_val is None:
+                elif "3" in t or "proyecto" in t or "lab" in t:
                     ev3_val = nota
-                    used_ids.add(c_id)
-
-            # 2. Asignación secuencial de notas restantes para casillas vacías
-            restantes = [c for c in c_list if c.get("id") not in used_ids]
-            if ev1_val is None and restantes:
-                ev1_val = float(restantes.pop(0).get("nota", 0.0))
-            if ev2_val is None and restantes:
-                ev2_val = float(restantes.pop(0).get("nota", 0.0))
-            if ev3_val is None and restantes:
-                ev3_val = float(restantes.pop(0).get("nota", 0.0))
 
             # Notas efectivas (0.0 si la evaluación está ausente o vacía)
             n1_efectiva = ev1_val if ev1_val is not None else 0.0
