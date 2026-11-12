@@ -890,24 +890,7 @@ class _GradosScreenState extends State<GradosScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'Cálculo dinámico en tiempo real',
-                                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                                ),
-                                Text(
-                                  periodoAbierto ? "Edición Habilitada" : "Bloqueado",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: periodoAbierto ? AppTheme.statusPresente : AppTheme.statusAusente,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
+
                             Container(
                               width: double.infinity,
                               height: 48,

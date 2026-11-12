@@ -413,15 +413,19 @@ def carga_academica(request):
     for c in cargas_consolidadas:
         c["total_secciones"] = len(c["secciones"])
         abrevs = []
+        secciones_items = []
         for s in c["secciones"]:
             parts = s.split(" - ")
             if len(parts) == 2:
                 grado_num = parts[0].replace(" Grado", "")
                 sec_letra = parts[1].replace("Sección ", "")
-                abrevs.append(f"{grado_num} {sec_letra}")
+                corta = f"{grado_num} {sec_letra}"
             else:
-                abrevs.append(s)
+                corta = s
+            abrevs.append(corta)
+            secciones_items.append({"corta": corta, "completa": s})
         c["secciones_resumen"] = ", ".join(abrevs)
+        c["secciones_items"] = secciones_items
         c["ids_str"] = ",".join(c["ids"])
         c["secciones_csv"] = ",".join(c["secciones"])
 

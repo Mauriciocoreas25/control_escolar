@@ -22,6 +22,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Map<String, dynamic>? _currentUser;
   Map<String, dynamic>? _profesorPerfil;
   Institucion? _institucion;
+  String? _docenteFotoUrl;
 
   @override
   void initState() {
@@ -51,10 +52,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     try {
       final userId = user['id'] as int?;
       if (userId != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final savedFoto = prefs.getString('docente_foto_$userId');
         final perfil = await ApiService.getProfesorPerfil(userId);
         final inst = await ApiService.getInstitucion();
         if (mounted) {
           setState(() {
+            _docenteFotoUrl = savedFoto;
             _profesorPerfil = perfil;
             _institucion = inst;
           });
@@ -866,6 +870,125 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showChangePhotoDialog(int userId) {
+    final textController = TextEditingController(text: _docenteFotoUrl ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          'Foto de Perfil del Docente',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Ingrese el enlace web (URL) de la fotografía institucional o seleccione una predefinida:',
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: textController,
+                style: const TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'https://ejemplo.com/docente.jpg',
+                  prefixIcon: const Icon(Icons.link_rounded, size: 18),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Fotografías institucionales sugeridas:',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildAvatarChoice('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', textController),
+                  _buildAvatarChoice('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', textController),
+                  _buildAvatarChoice('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150', textController),
+                  _buildAvatarChoice('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150', textController),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          if (_docenteFotoUrl != null && _docenteFotoUrl!.isNotEmpty)
+            TextButton(
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('docente_foto_$userId');
+                if (mounted) {
+                  setState(() => _docenteFotoUrl = null);
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text('Restablecer', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w700, fontSize: 12)),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600, fontSize: 12)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newUrl = textController.text.trim();
+              final prefs = await SharedPreferences.getInstance();
+              if (newUrl.isNotEmpty) {
+                await prefs.setString('docente_foto_$userId', newUrl);
+                if (mounted) {
+                  setState(() => _docenteFotoUrl = newUrl);
+                }
+              } else {
+                await prefs.remove('docente_foto_$userId');
+                if (mounted) {
+                  setState(() => _docenteFotoUrl = null);
+                }
+              }
+              Navigator.pop(ctx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Foto de perfil actualizada correctamente'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryBlue,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Guardar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarChoice(String url, TextEditingController controller) {
+    return InkWell(
+      onTap: () {
+        controller.text = url;
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: ClipOval(
+        child: Image.network(
+          url,
+          width: 40,
+          height: 40,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Icon(Icons.person, size: 28),
         ),
       ),
     );

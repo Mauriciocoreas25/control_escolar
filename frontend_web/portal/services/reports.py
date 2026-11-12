@@ -788,7 +788,7 @@ def generar_pdf_asistencia(registros, institucion, filtros={}):
         sub_parts.append(f"Estado: {filtros['estado']}")
     sub_str = " • ".join(sub_parts) if sub_parts else "Control General de Asistencia Institucional"
 
-    story.append(build_institution_header(institucion, "CONSOLIDADO OFICIAL DE ASISTENCIA DIARIA", sub_str, width=720))
+    story.append(build_institution_header(institucion, "CONSOLIDADO DE ASISTENCIA DIARIA", sub_str, width=720))
     story.append(Spacer(1, 10))
 
     # Resumen KPI Box
@@ -816,13 +816,13 @@ def generar_pdf_asistencia(registros, institucion, filtros={}):
 
     # Table headers
     headers = [
-        Paragraph("<b>#</b>", styles['cell_center']),
-        Paragraph("<b>NIE</b>", styles['cell_center']),
-        Paragraph("<b>Nombre Completo del Estudiante</b>", styles['cell_bold']),
-        Paragraph("<b>Grado y Sección</b>", styles['cell_center']),
-        Paragraph("<b>Fecha</b>", styles['cell_center']),
-        Paragraph("<b>Estado</b>", styles['cell_center']),
-        Paragraph("<b>Observaciones</b>", styles['cell']),
+        Paragraph("<b>#</b>", styles['th']),
+        Paragraph("<b>NIE</b>", styles['th']),
+        Paragraph("<b>Nombre Completo del Estudiante</b>", styles['th']),
+        Paragraph("<b>Grado y Sección</b>", styles['th']),
+        Paragraph("<b>Fecha</b>", styles['th']),
+        Paragraph("<b>Estado</b>", styles['th']),
+        Paragraph("<b>Observaciones</b>", styles['th']),
     ]
     data = [headers]
 
@@ -840,17 +840,17 @@ def generar_pdf_asistencia(registros, institucion, filtros={}):
 
         status_style = ParagraphStyle(
             f'status_asig_{i}',
-            parent=styles['cell_center'],
+            parent=styles['td_center'],
             textColor=colors.HexColor(st_color),
             fontName='Helvetica-Bold'
         )
 
         data.append([
-            Paragraph(str(i), styles['cell_center']),
-            Paragraph(f"<font name='Courier'>{r.get('nie', '---')}</font>", styles['cell_center']),
-            Paragraph(r.get("estudiante_nombre", ""), styles['cell']),
-            Paragraph(r.get("grado_seccion", "---"), styles['cell_center']),
-            Paragraph(str(r.get("fecha", "---")), styles['cell_center']),
+            Paragraph(str(i), styles['td_center']),
+            Paragraph(f"<font name='Courier'>{r.get('nie', '---')}</font>", styles['td_center']),
+            Paragraph(r.get("estudiante_nombre", ""), styles['td']),
+            Paragraph(r.get("grado_seccion", "---"), styles['td_center']),
+            Paragraph(str(r.get("fecha", "---")), styles['td_center']),
             Paragraph(st_txt, status_style),
             Paragraph(r.get("observacion", "Asistencia regular"), styles['sub']),
         ])
@@ -876,9 +876,9 @@ def generar_pdf_asistencia(registros, institucion, filtros={}):
     story.append(Spacer(1, 20))
     sig_data = [
         [
-            Paragraph("_______________________________<br/><b>Docente Titular / Inspector</b><br/><font size=7 color='#64748b'>Firma y Sello</font>", styles['cell_center']),
-            Paragraph("_______________________________<br/><b>Secretaría Académica</b><br/><font size=7 color='#64748b'>Control y Registro Escolar</font>", styles['cell_center']),
-            Paragraph("_______________________________<br/><b>Dirección General</b><br/><font size=7 color='#64748b'>Complejo Educativo Santa Sofía</font>", styles['cell_center'])
+            Paragraph("_______________________________<br/><b>Docente Titular / Inspector</b><br/><font size=7 color='#64748b'>Firma y Sello</font>", styles['td_center']),
+            Paragraph("_______________________________<br/><b>Secretaría Académica</b><br/><font size=7 color='#64748b'>Control y Registro Escolar</font>", styles['td_center']),
+            Paragraph("_______________________________<br/><b>Dirección General</b><br/><font size=7 color='#64748b'>Complejo Educativo Santa Sofía</font>", styles['td_center'])
         ]
     ]
     sig_table = Table(sig_data, colWidths=[240, 240, 240])
