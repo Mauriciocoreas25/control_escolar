@@ -622,8 +622,17 @@ class _DetalleClaseModalState extends State<_DetalleClaseModal> {
     _cargarEstudiantes();
   }
 
+  String _normalize(String s) {
+    return s.replaceAll('º', '°').replaceAll(' - ', ' ').replaceAll('  ', ' ').trim().toLowerCase();
+  }
+
   Future<void> _cargarEstudiantes() async {
-    final list = await ApiService.getEstudiantes(gradoSeccion: widget.horario.gradoSeccion);
+    var list = await ApiService.getEstudiantes(gradoSeccion: widget.horario.gradoSeccion);
+    if (list.isEmpty) {
+      final all = await ApiService.getEstudiantes();
+      final target = _normalize(widget.horario.gradoSeccion);
+      list = all.where((e) => _normalize(e.gradoSeccion) == target).toList();
+    }
     if (mounted) {
       setState(() {
         _estudiantes = list;

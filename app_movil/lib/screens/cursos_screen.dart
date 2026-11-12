@@ -27,6 +27,10 @@ class _CursosScreenState extends State<CursosScreen> {
     _loadData();
   }
 
+  String _normalizeSeccion(String s) {
+    return s.replaceAll('º', '°').replaceAll(' - ', ' ').replaceAll('  ', ' ').trim().toLowerCase();
+  }
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     final user = await ApiService.getCurrentUser();
@@ -59,7 +63,8 @@ class _CursosScreenState extends State<CursosScreen> {
     final todosEstudiantes = await ApiService.getEstudiantes();
     _estudiantesPorSeccion.clear();
     for (var e in todosEstudiantes) {
-      _estudiantesPorSeccion[e.gradoSeccion] = (_estudiantesPorSeccion[e.gradoSeccion] ?? 0) + 1;
+      final k = _normalizeSeccion(e.gradoSeccion);
+      _estudiantesPorSeccion[k] = (_estudiantesPorSeccion[k] ?? 0) + 1;
     }
 
     if (!mounted) return;
@@ -399,7 +404,7 @@ class _CursosScreenState extends State<CursosScreen> {
   }
 
   Widget _buildCourseCard(Asignatura curso) {
-    final matriculadosReales = _estudiantesPorSeccion[curso.gradoSeccion] ?? 0;
+    final matriculadosReales = _estudiantesPorSeccion[_normalizeSeccion(curso.gradoSeccion)] ?? 0;
     final aulaAsignada = curso.aulaNombre ?? (curso.aulaCodigo != null ? 'Aula ${curso.aulaCodigo}' : null);
 
     return GlassContainer(

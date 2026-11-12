@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from typing import List, Optional
 from app.core.database import get_db
 from app.models.models import Estudiante
@@ -11,12 +12,24 @@ router = APIRouter(prefix="/estudiantes", tags=["Estudiantes"])
 def listar_estudiantes(grado_seccion: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(Estudiante)
     if grado_seccion:
-        variante = grado_seccion.replace("º", "°") if "º" in grado_seccion else grado_seccion.replace("°", "º")
-        query = query.filter(
-            (Estudiante.grado_seccion == grado_seccion) |
-            (Estudiante.grado_seccion == variante) |
-            (Estudiante.grado_seccion.ilike(f"%{grado_seccion.strip()}%"))
-        )
+        raw = grado_seccion.strip()
+        candidatos = {raw, raw.replace("º", "°"), raw.replace("°", "º")}
+        for s in list(candidatos):
+            if " - " in s:
+                candidatos.add(s.replace(" - ", " "))
+            elif " Sección " in s:
+                candidatos.add(s.replace(" Sección ", " - Sección "))
+            elif " Seccion " in s:
+                candidatos.add(s.replace(" Seccion ", " - Sección "))
+        for s in list(candidatos):
+            candidatos.add(s.replace("º", "°"))
+            candidatos.add(s.replace("°", "º"))
+
+        conds = []
+        for c in candidatos:
+            conds.append(Estudiante.grado_seccion == c)
+            conds.append(Estudiante.grado_seccion.ilike(f"%{c}%"))
+        query = query.filter(or_(*conds))
     return query.all()
 
 @router.post("/", response_model=EstudianteResponse)
