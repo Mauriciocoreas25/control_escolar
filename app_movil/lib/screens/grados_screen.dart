@@ -33,7 +33,6 @@ class _GradosScreenState extends State<GradosScreen> {
     'Actividad 1: Examen Parcial (35%)',
     'Actividad 2: Guías y Tareas (35%)',
     'Actividad 3: Proyecto Aplicado (30%)',
-    'Evaluación de Recuperación (100%)',
   ];
 
   @override
@@ -97,18 +96,7 @@ class _GradosScreenState extends State<GradosScreen> {
     }
   }
 
-  List<String> get _listaNombresActividades {
-    final list = <String>[];
-    for (var a in _actividadesBD) {
-      list.add(a.displayName);
-    }
-    for (var e in _actividadesEstandar) {
-      if (!list.contains(e)) {
-        list.add(e);
-      }
-    }
-    return list;
-  }
+  List<String> get _listaNombresActividades => _actividadesEstandar;
 
   ActividadEvaluativa? get _actividadBDSeleccionada {
     try {
@@ -763,26 +751,15 @@ class _GradosScreenState extends State<GradosScreen> {
                                           ),
                                         ],
                                       ),
-                                      InkWell(
-                                        onTap: _mostrarDialogoCrearActividad,
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: AppTheme.primaryNavy.withOpacity(0.08),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: const [
-                                              Icon(Icons.add_circle_outline_rounded, size: 14, color: AppTheme.primaryNavy),
-                                              SizedBox(width: 4),
-                                              Text(
-                                                '+ Nueva Actividad',
-                                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.primaryNavy),
-                                              ),
-                                            ],
-                                          ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryNavy.withOpacity(0.06),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Text(
+                                          '3 Evaluaciones',
+                                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
                                         ),
                                       ),
                                     ],
@@ -793,7 +770,7 @@ class _GradosScreenState extends State<GradosScreen> {
                                       Expanded(
                                         child: DropdownButtonHideUnderline(
                                           child: DropdownButton<String>(
-                                            value: _actividadSeleccionada,
+                                            value: _listaNombresActividades.contains(_actividadSeleccionada) ? _actividadSeleccionada : _listaNombresActividades.first,
                                             isDense: true,
                                             isExpanded: true,
                                             icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.primaryNavy),
