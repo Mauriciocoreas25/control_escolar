@@ -575,49 +575,73 @@ def generar_pdf_boletas(boletas_data, institucion, periodo_nombre="Período 1"):
         story.append(est_table)
         story.append(Spacer(1, 12))
 
-        # Tabla de Calificaciones
-        table_data = [[
+        # Determinar número máximo de evaluaciones entre las materias de este alumno
+        max_evals = 3
+        for m in materias:
+            ev_list = m.get("evaluaciones", [])
+            if len(ev_list) > max_evals:
+                max_evals = len(ev_list)
+
+        # Construcción dinámica de encabezados
+        th_cols = [
             Paragraph("No.", styles['th']),
             Paragraph("Asignatura / Área de Aprendizaje", styles['th']),
-            Paragraph("Act. 1 (35%)", styles['th']),
-            Paragraph("Act. 2 (35%)", styles['th']),
-            Paragraph("Act. 3 (30%)", styles['th']),
-            Paragraph("Promedio", styles['th']),
-            Paragraph("Resultado", styles['th']),
-        ]]
+        ]
+        if max_evals == 3:
+            th_cols.append(Paragraph("Act. 1 (35%)", styles['th']))
+            th_cols.append(Paragraph("Act. 2 (35%)", styles['th']))
+            th_cols.append(Paragraph("Act. 3 (30%)", styles['th']))
+        else:
+            for ev_i in range(1, max_evals + 1):
+                th_cols.append(Paragraph(f"Eval. {ev_i}", styles['th']))
+        th_cols.append(Paragraph("Promedio", styles['th']))
+        th_cols.append(Paragraph("Resultado", styles['th']))
+
+        table_data = [th_cols]
 
         if materias:
             for mi, m in enumerate(materias, 1):
                 p_val = m.get("promedio", 0.0)
-                aprob = p_val >= 6.0
+                aprob = m.get("aprobado", False)
                 res_color = "#059669" if aprob else "#dc2626"
                 res_str = f"<font color='{res_color}'><b>{'Aprobado' if aprob else 'Reprobado'}</b></font>"
 
-                act1_str = f"{m.get('act1'):.1f}" if m.get('act1') is not None else "-"
-                act2_str = f"{m.get('act2'):.1f}" if m.get('act2') is not None else "-"
-                act3_str = f"{m.get('act3'):.1f}" if m.get('act3') is not None else "-"
-
-                table_data.append([
+                ev_list = m.get("evaluaciones", [])
+                row = [
                     Paragraph(str(mi), styles['td_center']),
                     Paragraph(f"<b>{m.get('nombre', 'Materia')}</b>", styles['td']),
-                    Paragraph(act1_str, styles['td_center']),
-                    Paragraph(act2_str, styles['td_center']),
-                    Paragraph(act3_str, styles['td_center']),
-                    Paragraph(f"<b>{p_val:.1f}</b>", styles['td_center']),
-                    Paragraph(res_str, styles['td_center']),
-                ])
+                ]
+
+                # Rellenar cada columna de evaluación
+                for ev_i in range(max_evals):
+                    if ev_i < len(ev_list):
+                        n_val = ev_list[ev_i].get("nota")
+                        if n_val is not None:
+                            n_col = "#047857" if n_val >= 6.0 else "#dc2626"
+                            row.append(Paragraph(f"<font color='{n_col}'><b>{n_val:.1f}</b></font>", styles['td_center']))
+                        else:
+                            row.append(Paragraph("<font color='#94a3b8'>- (0.0)</font>", styles['td_center']))
+                    else:
+                        row.append(Paragraph("-", styles['td_center']))
+
+                row.append(Paragraph(f"<b>{p_val:.1f}</b>", styles['td_center']))
+                row.append(Paragraph(res_str, styles['td_center']))
+                table_data.append(row)
         else:
-            table_data.append([
+            empty_row = [
                 Paragraph("-", styles['td_center']),
                 Paragraph("<i>No se registran notas para este estudiante en el período actual.</i>", styles['td']),
+            ] + [Paragraph("-", styles['td_center']) for _ in range(max_evals)] + [
                 Paragraph("-", styles['td_center']),
                 Paragraph("-", styles['td_center']),
-                Paragraph("-", styles['td_center']),
-                Paragraph("-", styles['td_center']),
-                Paragraph("-", styles['td_center']),
-            ])
+            ]
+            table_data.append(empty_row)
 
-        col_widths = [24, 216, 60, 60, 60, 60, 60]
+        fixed_other = 24 + 55 + 65
+        avail = 540 - fixed_other
+        eval_w = min(55, int(200 / max_evals))
+        asig_w = avail - (eval_w * max_evals)
+        col_widths = [24, asig_w] + [eval_w] * max_evals + [55, 65]
         grades_table = Table(table_data, colWidths=col_widths)
         grades_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a8a')),

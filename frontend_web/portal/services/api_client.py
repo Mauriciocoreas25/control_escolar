@@ -238,6 +238,20 @@ def get_asistencias():
         print(f"[API ERROR] get_asistencias: {e}")
     return []
 
+def get_actividades(asignatura_id=None, periodo_id=None):
+    try:
+        params = {}
+        if asignatura_id:
+            params["asignatura_id"] = asignatura_id
+        if periodo_id:
+            params["periodo_id"] = periodo_id
+        r = requests.get(f"{BASE_URL}/actividades/", params=params, timeout=4)
+        if r.status_code == 200:
+            return r.json()
+    except Exception as e:
+        print(f"[API ERROR] get_actividades: {e}")
+    return []
+
 def get_calificaciones(asignatura_id=None, periodo_id=None, estudiante_id=None):
     try:
         params = {}

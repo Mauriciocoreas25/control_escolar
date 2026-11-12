@@ -1063,15 +1063,15 @@ def get_boletas_data(seccion_filtro=None, periodo_id=None, estudiante_id=None):
     asignaturas_raw = api_client.get_asignaturas() or []
     periodos_raw = api_client.get_periodos() or []
     calificaciones_raw = api_client.get_calificaciones() or []
+    actividades_raw = api_client.get_actividades() or []
 
     periodo_obj = None
     if periodo_id:
         periodo_obj = next((p for p in periodos_raw if str(p.get("id")) == str(periodo_id)), None)
     if not periodo_obj and periodos_raw:
-        # Priorizar el período cerrado más reciente donde las boletas ya están emitidas
-        periodos_cerrados = [p for p in periodos_raw if p.get("estado") == "Cerrado"]
-        if periodos_cerrados:
-            periodo_obj = periodos_cerrados[-1]
+        periodos_abiertos = [p for p in periodos_raw if p.get("estado") == "Abierto"]
+        if periodos_abiertos:
+            periodo_obj = periodos_abiertos[0]
         else:
             periodo_obj = periodos_raw[0]
 
@@ -1086,6 +1086,7 @@ def get_boletas_data(seccion_filtro=None, periodo_id=None, estudiante_id=None):
             continue
         target_estudiantes.append(e)
 
+    # Indexar calificaciones por (estudiante_id, asignatura_id)
     califs_by_est_asig = {}
     for c in calificaciones_raw:
         if pid and c.get("periodo_id") != pid:
@@ -1096,6 +1097,16 @@ def get_boletas_data(seccion_filtro=None, periodo_id=None, estudiante_id=None):
         if key not in califs_by_est_asig:
             califs_by_est_asig[key] = []
         califs_by_est_asig[key].append(c)
+
+    # Indexar actividades por asignatura_id
+    acts_by_asig = {}
+    for act in actividades_raw:
+        if pid and act.get("periodo_id") != pid:
+            continue
+        a_id = act.get("asignatura_id")
+        if a_id not in acts_by_asig:
+            acts_by_asig[a_id] = []
+        acts_by_asig[a_id].append(act)
 
     boletas = []
     for e in target_estudiantes:
@@ -1113,38 +1124,90 @@ def get_boletas_data(seccion_filtro=None, periodo_id=None, estudiante_id=None):
             a_id = a.get("id")
             c_list = califs_by_est_asig.get((e_id, a_id), [])
 
-            act1 = None
-            act2 = None
-            act3 = None
-            direct_nota = None
+            # Actividades definidas para esta materia y período
+            defined_acts = acts_by_asig.get(a_id, [])
 
-            for c in c_list:
-                tipo = (c.get("tipo_evaluacion") or "").lower()
-                n = float(c.get("nota", 0.0))
-                if "actividad 1" in tipo or "examen" in tipo or "parcial" in tipo:
-                    act1 = n
-                elif "actividad 2" in tipo or "tarea" in tipo or "práctica" in tipo or "practica" in tipo:
-                    act2 = n
-                elif "actividad 3" in tipo or "proyecto" in tipo or "cotidiano" in tipo:
-                    act3 = n
+            if not defined_acts:
+                # Revisar tipos de evaluación existentes en calificaciones de esta materia
+                tipos_en_califs = []
+                for c in calificaciones_raw:
+                    if c.get("asignatura_id") == a_id and (not pid or c.get("periodo_id") == pid):
+                        t = c.get("tipo_evaluacion")
+                        if t and t not in tipos_en_califs:
+                            tipos_en_califs.append(t)
+                if tipos_en_califs:
+                    defined_acts = [{"nombre": t, "tipo": "Evaluación", "ponderacion": round(100.0 / len(tipos_en_califs), 1)} for t in tipos_en_califs]
                 else:
-                    direct_nota = n
+                    defined_acts = [
+                        {"nombre": "Actividad 1: Examen Parcial (35%)", "tipo": "Examen", "ponderacion": 35.0},
+                        {"nombre": "Actividad 2: Guías y Tareas (35%)", "tipo": "Tarea", "ponderacion": 35.0},
+                        {"nombre": "Actividad 3: Proyecto Aplicado (30%)", "tipo": "Proyecto", "ponderacion": 30.0},
+                    ]
 
-            acts_present = [x for x in [act1, act2, act3] if x is not None]
-            if len(acts_present) == 3:
-                m_prom = round((act1 * 0.35) + (act2 * 0.35) + (act3 * 0.30), 1)
-            elif len(acts_present) > 0:
-                m_prom = round(sum(acts_present) / len(acts_present), 1)
-            elif direct_nota is not None:
-                m_prom = round(direct_nota, 1)
+            num_evals = len(defined_acts)
+            evaluaciones_alumno = []
+            suma_notas = 0.0
+            suma_ponderada = 0.0
+            tiene_ponderaciones = all((act.get("ponderacion") or 0) > 0 for act in defined_acts)
+            suma_pesos = sum(act.get("ponderacion") or 0 for act in defined_acts)
+
+            for act in defined_acts:
+                act_nom = act.get("nombre", "")
+                act_tipo = act.get("tipo", "Evaluación")
+                act_pond = act.get("ponderacion", 0.0)
+
+                matching_calif = None
+                for c in c_list:
+                    c_tipo = c.get("tipo_evaluacion") or ""
+                    if c_tipo.strip().lower() == act_nom.strip().lower():
+                        matching_calif = c
+                        break
+                    t_low = c_tipo.lower()
+                    nom_low = act_nom.lower()
+                    if ("examen" in nom_low or "parcial" in nom_low or "actividad 1" in nom_low) and ("examen" in t_low or "parcial" in t_low or "actividad 1" in t_low):
+                        matching_calif = c
+                        break
+                    elif ("tarea" in nom_low or "guía" in nom_low or "guia" in nom_low or "actividad 2" in nom_low) and ("tarea" in t_low or "gu" in t_low or "actividad 2" in t_low):
+                        matching_calif = c
+                        break
+                    elif ("proyecto" in nom_low or "laboratorio" in nom_low or "actividad 3" in nom_low) and ("proyecto" in t_low or "lab" in t_low or "actividad 3" in t_low):
+                        matching_calif = c
+                        break
+
+                n_val = float(matching_calif.get("nota", 0.0)) if matching_calif is not None else None
+
+                evaluaciones_alumno.append({
+                    "nombre": act_nom,
+                    "tipo": act_tipo,
+                    "ponderacion": act_pond,
+                    "nota": n_val,
+                    "nota_efectiva": n_val if n_val is not None else 0.0,
+                })
+
+                efectiva = n_val if n_val is not None else 0.0
+                suma_notas += efectiva
+                if tiene_ponderaciones and suma_pesos > 0:
+                    suma_ponderada += efectiva * (act_pond / suma_pesos)
+
+            # Regla de negocio:
+            # Si el alumno tiene notas vacías, cuentan como 0.0 y se divide entre el total K de evaluaciones
+            if tiene_ponderaciones and abs(suma_pesos - 100.0) < 1.0:
+                m_prom = round(suma_ponderada, 1)
             else:
-                m_prom = 0.0
+                m_prom = round(suma_notas / num_evals, 1) if num_evals > 0 else 0.0
+
+            act1 = evaluaciones_alumno[0]["nota"] if len(evaluaciones_alumno) > 0 else None
+            act2 = evaluaciones_alumno[1]["nota"] if len(evaluaciones_alumno) > 1 else None
+            act3 = evaluaciones_alumno[2]["nota"] if len(evaluaciones_alumno) > 2 else None
 
             materias_list.append({
                 "id": a_id,
                 "nombre": a.get("nombre", f"Materia #{a_id}"),
                 "codigo": a.get("codigo", ""),
                 "profesor_nombre": a.get("profesor_nombre", "Docente asignado"),
+                "evaluaciones": evaluaciones_alumno,
+                "total_evaluaciones": num_evals,
+                "evaluaciones_presentadas": sum(1 for ev in evaluaciones_alumno if ev["nota"] is not None),
                 "act1": act1,
                 "act2": act2,
                 "act3": act3,
@@ -1159,7 +1222,7 @@ def get_boletas_data(seccion_filtro=None, periodo_id=None, estudiante_id=None):
             "estudiante": e,
             "materias": materias_list,
             "promedio_general": prom_general,
-            "aprobado": prom_general >= 6.0,
+            "aprobado": prom_general >= 6.0 and all(m["aprobado"] for m in materias_list),
             "periodo_nombre": periodo_nombre,
         })
 
@@ -1483,16 +1546,30 @@ def calificaciones_consolidado_view(request):
 
 @login_required
 def calificaciones_export_pdf(request):
-    registros, _, asignaturas, periodos, seccion_filtro, asignatura_filtro, periodo_filtro, _ = get_calificaciones_data(request)
+    registros, _, _, periodos, seccion_filtro, asignatura_filtro, periodo_filtro, todas_asignaturas = get_calificaciones_data(request)
     institucion = ConfiguracionInstitucion.get_activa()
 
-    asig_nombre = next((a.get("nombre") for a in asignaturas if str(a.get("id")) == asignatura_filtro), "")
-    per_nombre = next((p.get("nombre") for p in periodos if str(p.get("id")) == periodo_filtro), "")
+    asig_nombre = ""
+    if asignatura_filtro:
+        if todas_asignaturas:
+            for a in todas_asignaturas:
+                if str(a.get("id")) == str(asignatura_filtro) or (a.get("nombre") and a.get("nombre").lower() == str(asignatura_filtro).lower()):
+                    asig_nombre = a.get("nombre", "")
+                    break
+        if not asig_nombre:
+            asig_nombre = str(asignatura_filtro)
+
+    per_nombre = ""
+    if periodo_filtro and periodos:
+        for p in periodos:
+            if str(p.get("id")) == str(periodo_filtro):
+                per_nombre = p.get("nombre", "")
+                break
 
     filtros = {
-        "seccion": seccion_filtro,
-        "asignatura": asig_nombre,
-        "periodo": per_nombre,
+        "seccion": seccion_filtro or "Todas las Secciones",
+        "asignatura": asig_nombre or "Todas las Asignaturas",
+        "periodo": per_nombre or "Todos los Períodos",
     }
     pdf_bytes = reports.generar_pdf_calificaciones(registros, institucion, filtros)
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
