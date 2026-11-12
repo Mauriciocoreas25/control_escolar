@@ -31,6 +31,14 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     _initData();
   }
 
+  @override
+  void didUpdateWidget(covariant AsistenciaScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedCourse != null && widget.selectedCourse?.id != _cursoActivo?.id) {
+      _cambiarCurso(widget.selectedCourse!);
+    }
+  }
+
   Future<void> _initData() async {
     setState(() => _isLoading = true);
     final user = await ApiService.getCurrentUser();

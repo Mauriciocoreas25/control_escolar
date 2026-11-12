@@ -43,6 +43,14 @@ class _GradosScreenState extends State<GradosScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant GradosScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedCourse != null && widget.selectedCourse?.id != _cursoActivo?.id) {
+      _cambiarCursoOPeriodo(nuevoCurso: widget.selectedCourse);
+    }
+  }
+
+  @override
   void dispose() {
     for (var c in _controllers.values) {
       c.dispose();
@@ -399,42 +407,51 @@ class _GradosScreenState extends State<GradosScreen> {
     if (_cursoActivo == null || _periodoActivo == null || _estudiantes.isEmpty) return;
 
     setState(() => _isSaving = true);
-    int guardados = 0;
-    int fallidos = 0;
+    final List<Future<bool>> futures = [];
     for (var e in _estudiantes) {
       final text = _controllers[e.id]?.text.trim() ?? '';
       if (text.isEmpty) continue;
       final nota = double.tryParse(text.replaceAll(',', '.'));
       if (nota == null || nota < 0 || nota > 10) continue;
-      final ok = await ApiService.registrarCalificacion(
+      futures.add(ApiService.registrarCalificacion(
         estudianteId: e.id,
         asignaturaId: _cursoActivo!.id,
         periodoId: _periodoActivo!.id,
         nota: nota,
         tipoEvaluacion: _actividadSeleccionada,
-      );
-      if (ok) {
-        guardados++;
-      } else {
-        fallidos++;
-      }
+      ));
     }
+
+    if (futures.isEmpty) {
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFF64748B),
+          content: Text('No hay nuevas calificaciones ingresadas para registrar.'),
+        ),
+      );
+      return;
+    }
+
+    final results = await Future.wait(futures);
+    final guardados = results.where((ok) => ok).length;
+    final fallidos = results.where((ok) => !ok).length;
 
     if (!mounted) return;
     setState(() => _isSaving = false);
 
     if (fallidos > 0 && guardados == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           backgroundColor: Colors.redAccent,
-          content: Text('Error al guardar ($fallidos notas no enviadas). Verifique que el servidor (${ApiService.baseUrl}) esté activo.'),
+          content: Text('Error al guardar las notas. Verifique la conexión con el servidor.'),
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: AppTheme.primaryNavy,
-          content: Text('¡Calificaciones guardadas exitosamente! ($guardados notas registradas)'),
+          content: Text('Calificaciones guardadas exitosamente ($guardados notas actualizadas).'),
         ),
       );
     }
@@ -581,22 +598,16 @@ class _GradosScreenState extends State<GradosScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                                         decoration: BoxDecoration(
-                                          gradient: periodoAbierto ? AppTheme.emeraldGradient : AppTheme.roseGradient,
+                                          color: AppTheme.primaryNavy.withOpacity(0.08),
                                           borderRadius: BorderRadius.circular(12),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: (periodoAbierto ? AppTheme.statusPresente : AppTheme.statusAusente).withOpacity(0.3),
-                                              blurRadius: 6,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
+                                          border: Border.all(color: AppTheme.primaryNavy.withOpacity(0.2)),
                                         ),
                                         child: Text(
-                                          periodoAbierto ? 'Período Habilitado' : 'Período Bloqueado',
+                                          _periodoActivo?.nombre ?? "Período Lectivo",
                                           style: const TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.w800,
-                                            color: Colors.white,
+                                            color: AppTheme.primaryNavy,
                                           ),
                                         ),
                                       ),
@@ -895,10 +906,10 @@ class _GradosScreenState extends State<GradosScreen> {
                               width: double.infinity,
                               height: 48,
                               decoration: BoxDecoration(
-                                gradient: (periodoAbierto && !_isSaving && _estudiantes.isNotEmpty) ? AppTheme.buttonGradient : null,
-                                color: (periodoAbierto && !_isSaving && _estudiantes.isNotEmpty) ? null : const Color(0xFFCBD5E1),
+                                gradient: (!_isSaving && _estudiantes.isNotEmpty) ? AppTheme.buttonGradient : null,
+                                color: (!_isSaving && _estudiantes.isNotEmpty) ? null : const Color(0xFFCBD5E1),
                                 borderRadius: BorderRadius.circular(14),
-                                boxShadow: (periodoAbierto && !_isSaving && _estudiantes.isNotEmpty)
+                                boxShadow: (!_isSaving && _estudiantes.isNotEmpty)
                                     ? [
                                         BoxShadow(
                                           color: const Color(0xFF2563EB).withOpacity(0.35),
@@ -912,7 +923,7 @@ class _GradosScreenState extends State<GradosScreen> {
                                 color: Colors.transparent,
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(14),
-                                  onTap: (periodoAbierto && !_isSaving && _estudiantes.isNotEmpty) ? _guardarNotas : null,
+                                  onTap: (!_isSaving && _estudiantes.isNotEmpty) ? _guardarNotas : null,
                                   child: Center(
                                     child: _isSaving
                                         ? const SizedBox(
@@ -1004,7 +1015,7 @@ class _GradosScreenState extends State<GradosScreen> {
             width: 76,
             child: TextField(
               controller: controller,
-              enabled: periodoAbierto,
+              enabled: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d{0,2}([.,]\d{0,2})?')),
@@ -1043,7 +1054,7 @@ class _GradosScreenState extends State<GradosScreen> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 isDense: true,
                 filled: true,
-                fillColor: periodoAbierto ? Colors.white : const Color(0xFFF8FAFC),
+                fillColor: Colors.white,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
