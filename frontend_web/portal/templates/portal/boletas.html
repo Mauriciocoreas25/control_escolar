@@ -53,28 +53,28 @@
     {% endfor %}
   </div>
 
-  <!-- 1-Click Section Filter Pills -->
-  <div class="space-y-2">
-    <div class="flex items-center justify-between">
-      <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Filtrar por Sección Escolar:</span>
-      {% if seccion_filtro %}
-        <a href="{% url 'boletas_view' %}?periodo_id={{ periodo_filtro }}" class="text-xs font-semibold text-blue-900 hover:underline">
-          Ver Todas las Secciones
-        </a>
-      {% endif %}
+  <!-- Filtro Desplegable de Secciones -->
+  <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <label for="select-seccion" class="text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+        Filtrar por Sección Escolar:
+      </label>
+      <select id="select-seccion" onchange="window.location.href=this.value" class="text-xs py-2 px-3 rounded-lg border border-slate-300 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 min-w-[280px]">
+        <option value="{% url 'boletas_view' %}?periodo_id={{ periodo_filtro }}" {% if not seccion_filtro %}selected{% endif %}>
+          Todas las Secciones ({{ total_alumnos_colegio }} estudiantes)
+        </option>
+        {% for sec in secciones_con_conteo %}
+          <option value="{% url 'boletas_view' %}?periodo_id={{ periodo_filtro }}&seccion={{ sec.nombre|urlencode }}" {% if seccion_filtro == sec.nombre %}selected{% endif %}>
+            {{ sec.nombre }} ({{ sec.total }} estudiantes)
+          </option>
+        {% endfor %}
+      </select>
     </div>
-
-    <div class="flex flex-wrap gap-1.5">
-      <a href="{% url 'boletas_view' %}?periodo_id={{ periodo_filtro }}" class="px-3 py-1.5 rounded-lg text-xs font-bold transition {% if not seccion_filtro %}bg-blue-900 text-white shadow-xs{% else %}bg-white text-slate-700 border border-slate-300 hover:bg-slate-50{% endif %}">
-        Todas las Secciones ({{ total_alumnos_colegio }})
+    {% if seccion_filtro %}
+      <a href="{% url 'boletas_view' %}?periodo_id={{ periodo_filtro }}" class="text-xs font-semibold text-blue-900 hover:underline">
+        Limpiar filtro (Ver todas las secciones)
       </a>
-
-      {% for sec in secciones_con_conteo %}
-      <a href="{% url 'boletas_view' %}?periodo_id={{ periodo_filtro }}&seccion={{ sec.nombre }}" class="px-3 py-1.5 rounded-lg text-xs font-bold transition {% if seccion_filtro == sec.nombre %}bg-blue-900 text-white shadow-xs{% else %}bg-white text-slate-700 border border-slate-300 hover:bg-slate-50{% endif %}">
-        {{ sec.nombre }} ({{ sec.total }})
-      </a>
-      {% endfor %}
-    </div>
+    {% endif %}
   </div>
 
   <!-- Student Report Cards Table -->

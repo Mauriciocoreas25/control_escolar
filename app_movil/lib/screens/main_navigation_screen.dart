@@ -228,23 +228,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 index: 4,
               ),
 
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Divider(color: AppTheme.borderSubtle),
-              ),
 
-              ListTile(
-                leading: const Icon(Icons.settings_ethernet_rounded, color: Color(0xFF64748B), size: 20),
-                title: const Text('Conexión del Sistema', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                subtitle: Text(
-                  ApiService.baseUrl,
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showServerConfigDialog();
-                },
-              ),
 
               const Spacer(),
 
@@ -879,144 +863,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 22),
-
-                // Servidor discreto al pie
-                Center(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: _showServerConfigDialog,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.cloud_done_outlined, size: 13, color: Color(0xFF94A3B8)),
-                          const SizedBox(width: 5),
-                          Text(
-                            'Servidor: ${ApiService.baseUrl}',
-                            style: const TextStyle(
-                              fontSize: 10.5,
-                              fontFamily: 'monospace',
-                              color: Color(0xFF94A3B8),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.edit_outlined, size: 11, color: Color(0xFF94A3B8)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  void _showServerConfigDialog() {
-    final controller = TextEditingController(text: ApiService.baseUrl);
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: const [
-              Icon(Icons.dns_rounded, color: AppTheme.primaryNavy, size: 22),
-              SizedBox(width: 10),
-              Text('Servidor Escolar', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Seleccione el entorno de conexión o ingrese la dirección:',
-                  style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          side: const BorderSide(color: Color(0xFF2563EB)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: () {
-                          setDialogState(() {
-                            controller.text = ApiService.localEmulatorUrl;
-                          });
-                        },
-                        child: const Text('💻 Emulador Local', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          side: const BorderSide(color: Color(0xFF059669)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: () {
-                          setDialogState(() {
-                            controller.text = ApiService.azureServerUrl;
-                          });
-                        },
-                        child: const Text('☁️ Nube Azure', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF059669))),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: controller,
-                  decoration: InputDecoration(
-                    labelText: 'URL del Servidor API',
-                    prefixIcon: const Icon(Icons.link_rounded, size: 20),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    isDense: true,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryNavy,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              ),
-              onPressed: () async {
-                final url = controller.text.trim();
-                await ApiService.setBaseUrl(url);
-                if (!mounted) return;
-                Navigator.pop(ctx);
-                setState(() {});
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: const Color(0xFF059669),
-                    content: Text('Servidor actualizado a: $url'),
-                  ),
-                );
-              },
-              child: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
         ),
       ),
     );

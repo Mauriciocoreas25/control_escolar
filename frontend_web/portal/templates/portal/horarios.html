@@ -51,31 +51,25 @@
   <!-- ==================== TAB 1: HORARIO POR SECCIÓN ==================== -->
   {% if active_tab == 'seccion' %}
   <div class="space-y-4">
-    <!-- Selector Rápido de Secciones por Ciclos Escolar -->
-    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-        <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Seleccionar Sección para Consultar Horario:</span>
-        <span class="text-xs text-slate-500 hidden sm:inline">Haga clic en una sección para ver su horario semanal completo</span>
+    <!-- Selector Desplegable de Secciones para Horarios -->
+    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <label for="select-horario-seccion" class="text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+          Seleccionar Sección:
+        </label>
+        <select id="select-horario-seccion" onchange="window.location.href='?tab=seccion&seccion_id=' + this.value" class="text-xs py-2 px-3 rounded-lg border border-slate-300 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 min-w-[280px]">
+          {% for c in ciclos_secciones %}
+            <optgroup label="{{ c.ciclo }}">
+              {% for s in c.secciones %}
+                <option value="{{ s.id }}" {% if seccion_id == s.id %}selected{% endif %}>
+                  {{ s.grado }} - {{ s.seccion }}
+                </option>
+              {% endfor %}
+            </optgroup>
+          {% endfor %}
+        </select>
       </div>
-
-      <div class="space-y-2.5">
-        {% for c in ciclos_secciones %}
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-          <span class="text-xs font-bold text-slate-600 w-44 shrink-0 flex items-center gap-1.5">
-            <span class="w-1.5 h-1.5 rounded-full bg-blue-900"></span>
-            {{ c.ciclo }}:
-          </span>
-          <div class="flex flex-wrap gap-1.5 flex-1">
-            {% for s in c.secciones %}
-            <a href="?tab=seccion&seccion_id={{ s.id }}"
-               class="px-2.5 py-1 text-xs rounded transition font-medium {% if seccion_id == s.id %}bg-blue-900 text-white font-bold shadow-xs{% else %}bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-900 border border-slate-200{% endif %}">
-              {{ s.grado }} - {{ s.seccion }}
-            </a>
-            {% endfor %}
-          </div>
-        </div>
-        {% endfor %}
-      </div>
+      <span class="text-xs text-slate-500 font-medium">Horario semanal de clases por sección</span>
     </div>
 
     <!-- Encabezado de la Sección Seleccionada -->
